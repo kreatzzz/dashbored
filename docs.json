@@ -12,15 +12,15 @@
     "groups": [
       {
         "group": "Getting started",
-        "pages": ["index", "quickstart"]
+        "pages": ["docs/index", "docs/quickstart"]
       },
       {
         "group": "Integrations and guides",
-        "pages": ["portainer", "services", "launcher", "networking"]
+        "pages": ["docs/portainer", "docs/services", "docs/launcher", "docs/networking"]
       },
       {
         "group": "Reference",
-        "pages": ["security", "operations", "contributing"]
+        "pages": ["docs/security", "docs/operations", "docs/contributing"]
       }
     ]
   }
