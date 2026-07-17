@@ -1,0 +1,18 @@
+---
+title: Connect Portainer
+description: Configure the only discovery and container-control provider supported in v1.
+---
+
+## Create a scoped token
+
+Create an access token in Portainer for an account that can read the selected environment. Grant container action permissions only when you intend to use start, stop, or restart from Dashbored.
+
+## Add the connection
+
+In **Dashboard → Settings**, add Portainer's private HTTP or HTTPS URL, choose the Portainer adapter, and store the token as the API key. Prefer a certificate trusted by the Dashbored host.
+
+## Discovery behavior
+
+Dashbored makes one Portainer inventory request per synchronization cycle. It does not probe every discovered container. Names, images, states, published ports, and labels are synchronized while user-defined names and launch URLs remain preserved.
+
+Launch URLs are inferred conservatively. User overrides always win, followed by recognized proxy labels and unambiguous published HTTP ports.

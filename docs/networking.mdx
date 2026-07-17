@@ -1,0 +1,10 @@
+---
+title: Networking and private DNS
+description: Choose addresses that work from both the Dashbored server and your browser.
+---
+
+An adapter URL is requested by the Dashbored server, while a launch URL is opened by your browser. Those two addresses may differ.
+
+Use `home.arpa` with your home DNS server for stable LAN names, or use a Tailscale hostname for private remote access. The `.local` suffix is multicast DNS and is normally limited to one network segment. The `.localhost` suffix always points back to the device opening it, which is why Portless URLs are development-only.
+
+Dashbored accepts private LAN and Tailscale destinations. It blocks loopback, public, link-local, embedded-credential, and redirect-pivot upstream URLs.

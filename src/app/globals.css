@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+:root {
+  --ds-background-100: #ffffff;
+  --ds-background-200: #fafafa;
+  --ds-gray-100: #f2f2f2;
+  --ds-gray-200: #ebebeb;
+  --ds-gray-300: #e6e6e6;
+  --ds-gray-400: #eaeaea;
+  --ds-gray-500: #c9c9c9;
+  --ds-gray-600: #a8a8a8;
+  --ds-gray-700: #8f8f8f;
+  --ds-gray-900: #666666;
+  --ds-gray-1000: #171717;
+  --ds-blue-700: #0070f3;
+  --ds-green-700: #1a7f37;
+  --ds-amber-700: #d97706;
+  --ds-red-700: #e5484d;
+  --ds-violet-700: #6e56cf;
+
+  --background: var(--ds-background-100);
+  --foreground: var(--ds-gray-1000);
+  --card: var(--ds-background-100);
+  --card-foreground: var(--ds-gray-1000);
+  --popover: var(--ds-background-100);
+  --popover-foreground: var(--ds-gray-1000);
+  --primary: var(--ds-gray-1000);
+  --primary-foreground: #ffffff;
+  --secondary: var(--ds-gray-100);
+  --secondary-foreground: var(--ds-gray-1000);
+  --muted: var(--ds-gray-100);
+  --muted-foreground: var(--ds-gray-900);
+  --accent: var(--ds-gray-100);
+  --accent-foreground: var(--ds-gray-1000);
+  --destructive: var(--ds-red-700);
+  --border: var(--ds-gray-200);
+  --input: var(--ds-gray-200);
+  --ring: var(--ds-gray-1000);
+  --sidebar: var(--ds-background-200);
+  --hover: var(--ds-gray-100);
+  --strong-border: var(--ds-gray-500);
+
+  --ink: var(--ds-gray-1000);
+  --paper: var(--ds-background-100);
+  --panel: var(--ds-background-100);
+  --line: var(--ds-gray-200);
+  --soft: var(--ds-gray-100);
+  --good: var(--ds-green-700);
+  --warn: var(--ds-amber-700);
+  --bad: var(--ds-red-700);
+  --chart-1: var(--ds-blue-700);
+  --chart-2: var(--ds-gray-1000);
+  --chart-3: var(--ds-gray-700);
+  --surface-shadow:
+    0 0 0 1px oklch(0 0 0 / 0.055),
+    0 1px 2px -1px oklch(0 0 0 / 0.06),
+    0 2px 5px oklch(0 0 0 / 0.035);
+  --surface-shadow-hover:
+    0 0 0 1px oklch(0 0 0 / 0.085),
+    0 1px 2px -1px oklch(0 0 0 / 0.08),
+    0 4px 10px oklch(0 0 0 / 0.05);
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-drawer: cubic-bezier(.32, .72, 0, 1);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --ds-background-100: #0a0a0a;
+  --ds-background-200: #111111;
+  --ds-gray-100: #1a1a1a;
+  --ds-gray-200: #242424;
+  --ds-gray-300: #2e2e2e;
+  --ds-gray-400: #3a3a3a;
+  --ds-gray-500: #555555;
+  --ds-gray-600: #777777;
+  --ds-gray-700: #a1a1a1;
+  --ds-gray-900: #c7c7c7;
+  --ds-gray-1000: #ededed;
+  --ds-blue-700: #52a8ff;
+  --ds-green-700: #46a758;
+  --ds-amber-700: #f5a623;
+  --ds-red-700: #ff6369;
+  --ds-violet-700: #9e8cfc;
+  --primary-foreground: #0a0a0a;
+  --sidebar: #0f0f0f;
+  --hover: #1a1a1a;
+  --strong-border: #555555;
+  --surface-shadow: 0 0 0 1px oklch(1 0 0 / 0.085);
+  --surface-shadow-hover: 0 0 0 1px oklch(1 0 0 / 0.14);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-hover: var(--hover);
+  --color-strong-border: var(--strong-border);
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; background: var(--ds-background-100); }
+body {
+  margin: 0;
+  color: var(--ds-gray-1000);
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-synthesis: none;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, select, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { user-select: none; }
+button:not(:disabled), a { cursor: pointer; }
+::selection { background: var(--ds-blue-700); color: white; }
+.mono { font-family: var(--font-geist-mono), monospace; font-variant-numeric: tabular-nums slashed-zero; }
+.hairline { border-color: var(--ds-gray-200); }
+
+a { text-decoration-skip-ink: auto; text-underline-position: from-font; }
+
+.dialog-overlay {
+  animation: overlay-in 180ms var(--ease-out);
+}
+.dialog-overlay[data-state="closed"] { animation: overlay-out 140ms ease-in; }
+.dialog-content {
+  animation: dialog-in 220ms var(--ease-out);
+}
+.dialog-content[data-state="closed"] { animation: dialog-out 150ms ease-in; }
+
+.auth-enter { animation: auth-enter 360ms var(--ease-out) both; }
+.auth-enter-delay-1 { animation-delay: 60ms; }
+.auth-enter-delay-2 { animation-delay: 120ms; }
+.auth-enter-delay-3 { animation-delay: 180ms; }
+
+@keyframes overlay-in { from { opacity: 0; } }
+@keyframes overlay-out { to { opacity: 0; } }
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)) scale(.97); } }
+@keyframes dialog-out { to { opacity: 0; transform: translate(-50%, calc(-50% - 8px)) scale(.98); } }
+@keyframes auth-enter { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+
+@media (max-width: 639px) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 80ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 80ms !important; }
+  .dialog-content { animation-name: overlay-in; }
+  .dialog-content[data-state="closed"] { animation-name: overlay-out; }
+  .auth-enter { animation-name: overlay-in; }
+}
+
+/* Public site and documentation — intentionally the same quiet visual system as the console. */
+.public-page { min-height: 100vh; background: var(--background); }
+.public-shell { width: min(100% - 40px, 1120px); margin-inline: auto; }
+.public-header { border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--background) 92%, transparent); backdrop-filter: blur(12px); }
+.public-nav-link { display: inline-flex; align-items: center; gap: 5px; border-radius: 5px; padding: 7px 9px; color: var(--muted-foreground); font-size: 13px; transition: color 150ms, background-color 150ms; }
+.public-nav-link:hover, .public-nav-link-active { background: var(--hover); color: var(--foreground); }
+.public-console-link, .public-primary, .public-secondary { display: inline-flex; height: 32px; align-items: center; justify-content: center; gap: 7px; border-radius: 6px; padding: 0 11px; font-size: 13px; font-weight: 500; transition: color 150ms, border-color 150ms, background-color 150ms; }
+.public-console-link, .public-secondary { border: 1px solid var(--border); color: var(--foreground); }
+.public-console-link:hover, .public-secondary:hover { border-color: var(--strong-border); background: var(--hover); }
+.public-primary { background: var(--foreground); color: var(--background); }
+.public-primary:hover { background: color-mix(in srgb, var(--foreground) 88%, var(--background)); }
+.public-hero { display: grid; gap: 52px; padding-block: clamp(72px, 11vw, 132px); }
+.public-kicker { color: var(--muted-foreground); font-size: 13px; font-weight: 500; }
+.public-title { margin: 13px 0 0; max-width: 850px; text-wrap: balance; font-size: clamp(42px, 7vw, 76px); font-weight: 600; letter-spacing: -.065em; line-height: .98; }
+.public-lede { max-width: 560px; margin-top: 24px; color: var(--muted-foreground); font-size: 16px; line-height: 1.65; }
+.hero-console { overflow: hidden; border: 1px solid var(--border); border-radius: 7px; background: var(--background); box-shadow: var(--surface-shadow); }
+.hero-console-bar { display: flex; height: 42px; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); padding: 0 14px; font-size: 12px; font-weight: 500; }
+.hero-console-mark { height: 10px; width: 10px; border-radius: 2px; background: var(--foreground); }
+.status-healthy { border: 1px solid color-mix(in srgb, var(--good) 25%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--good) 8%, transparent); color: var(--good); padding: 3px 7px; font-size: 10px; font-weight: 500; }
+.hero-trend { display: flex; height: 100px; align-items: end; gap: 5px; border-bottom: 1px solid var(--border); padding: 8px 0; }
+.hero-trend span { flex: 1; border-radius: 2px 2px 0 0; background: color-mix(in srgb, var(--ds-blue-700) 85%, var(--background)); }
+.hero-launch-item { display: flex; min-height: 34px; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.hero-launch-item:last-child { border-bottom: 0; }
+.launcher-search { display: flex; height: 37px; max-width: 480px; align-items: center; gap: 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); padding: 0 10px; color: var(--muted-foreground); }
+.launcher-search:focus-within { border-color: var(--foreground); box-shadow: 0 0 0 1px var(--foreground); }
+.launcher-search input { min-width: 0; flex: 1; outline: none; background: transparent; color: var(--foreground); font-size: 13px; }
+.launcher-search kbd { border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; font: 10px var(--font-geist-mono), monospace; }
+.launcher-entry { display: flex; min-height: 78px; align-items: center; gap: 12px; background: var(--background); padding: 14px; transition: background-color 150ms; }
+.launcher-entry:hover { background: var(--hover); }
+.launcher-empty { display: grid; min-height: 260px; place-content: center; border: 1px solid var(--border); border-radius: 6px; padding: 28px; text-align: center; }
+
+@media (min-width: 860px) { .public-hero { grid-template-columns: minmax(0, 1fr) minmax(410px, .85fr); align-items: center; } }
+@media (max-width: 639px) { .public-shell { width: min(100% - 32px, 1120px); } .public-title { font-size: 42px; } .public-lede { font-size: 15px; } .hero-console { margin-inline: -1px; } }

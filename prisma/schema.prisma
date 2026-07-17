@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String     @id
+  name          String
+  email         String     @unique
+  emailVerified Boolean    @default(false)
+  image         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  passkeys      Passkey[]
+  actions       ActionAudit[]
+  preferences   DashboardPreference[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+}
+
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime? @default(now())
+  aaguid       String?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ServiceCategory {
+  id        String            @id @default(cuid())
+  name      String
+  slug      String            @unique
+  icon      String
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  services  ServiceInstance[]
+}
+
+model ServiceInstance {
+  id              String              @id @default(cuid())
+  name            String
+  slug            String              @unique
+  adapterType     String
+  description     String?
+  icon            String
+  baseUrl         String?
+  launchUrl       String
+  enabled         Boolean             @default(true)
+  sortOrder       Int                 @default(0)
+  categoryId      String
+  credentialId    String?             @unique
+  configuration   Json                @default("{}")
+  lastCheckedAt   DateTime?
+  lastStatus      String              @default("unknown")
+  lastLatencyMs   Int?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  category        ServiceCategory     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  credential      EncryptedCredential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  healthSnapshots HealthSnapshot[]
+  actions         ActionAudit[]
+  launcherEntries LauncherEntry[] @relation("PortainerLauncherProvider")
+  pollFailureCount Int             @default(0)
+  nextPollAt       DateTime?
+  lastLauncherDiscoveryAt DateTime?
+
+  @@index([categoryId, sortOrder])
+  @@index([enabled])
+}
+
+model LauncherEntry {
+  id                  String          @id @default(cuid())
+  providerServiceId   String
+  containerId         String
+  discoveredName      String
+  image               String?
+  inferredLaunchUrl   String?
+  containerState      String          @default("unknown")
+  containerStatus     String?
+  lastStatus          String          @default("unknown")
+  exposedPorts        Json            @default("[]")
+  nameOverride        String?
+  launchUrlOverride   String?
+  hidden              Boolean         @default(false)
+  lastSeenAt          DateTime        @default(now())
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  providerService     ServiceInstance @relation("PortainerLauncherProvider", fields: [providerServiceId], references: [id], onDelete: Cascade)
+
+  @@unique([providerServiceId, containerId])
+  @@index([providerServiceId, hidden])
+  @@index([lastSeenAt])
+}
+
+model EncryptedCredential {
+  id         String           @id @default(cuid())
+  ciphertext String
+  nonce      String
+  authTag    String
+  keyVersion Int              @default(1)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  service    ServiceInstance?
+}
+
+model HealthSnapshot {
+  id        BigInt          @id @default(autoincrement())
+  serviceId String
+  status    String
+  latencyMs Int?
+  message   String?
+  metrics   Json            @default("{}")
+  checkedAt DateTime        @default(now())
+  service   ServiceInstance @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, checkedAt])
+  @@index([checkedAt])
+}
+
+model ActionAudit {
+  id         String           @id @default(cuid())
+  userId     String?
+  serviceId  String?
+  action     String
+  target     String?
+  status     String
+  detail     Json             @default("{}")
+  ipAddress  String?
+  createdAt  DateTime         @default(now())
+  user       User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  service    ServiceInstance? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([serviceId, createdAt])
+}
+
+model DashboardPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+}

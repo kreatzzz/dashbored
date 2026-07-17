@@ -1,0 +1,16 @@
+---
+title: Contributing
+description: Develop adapters and product changes without weakening Dashbored's safety boundaries.
+---
+
+Read `CONTRIBUTING.md`, `SECURITY.md`, `PRODUCT.md`, and `DESIGN.md` before opening a pull request.
+
+```bash
+bun install
+bun run test
+bun run lint
+bun run typecheck
+bun run build
+```
+
+New adapters must validate upstream payloads, use the private-network request guard, provide sanitized fixtures, define safe capabilities, and avoid generic proxy behavior. A popular application is not automatically a good native integration; the API must expose operational data that meaningfully improves the dashboard.

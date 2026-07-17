@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dashbored
+      POSTGRES_USER: dashbored
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - dashbored_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dashbored -d dashbored"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [dashbored_internal]
+
+  migrate:
+    build: .
+    restart: "no"
+    command: ["sh", "-c", "bun run db:deploy && bun run db:seed"]
+    environment: &app_env
+      DATABASE_URL: postgresql://dashbored:${POSTGRES_PASSWORD}@postgres:5432/dashbored
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:43821}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-}
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+      BOOTSTRAP_EMAIL: ${BOOTSTRAP_EMAIL}
+      BOOTSTRAP_PASSWORD: ${BOOTSTRAP_PASSWORD}
+      ALLOW_SIGNUP: "true"
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [dashbored_internal, dashbored_services]
+
+  dashboard:
+    build: .
+    restart: unless-stopped
+    environment:
+      <<: *app_env
+      ALLOW_SIGNUP: "false"
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT:-43821}:3000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    networks: [dashbored_internal, dashbored_services]
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["bun", "run", "worker"]
+    environment:
+      <<: *app_env
+      ALLOW_SIGNUP: "false"
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-60000}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [dashbored_internal, dashbored_services]
+
+networks:
+  dashbored_internal:
+    internal: true
+  dashbored_services: {}
+
+volumes:
+  dashbored_postgres:

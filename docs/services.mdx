@@ -1,0 +1,15 @@
+---
+title: Connect native services
+description: Add supported integrations without exposing their credentials to the browser.
+---
+
+Each native service has a launch URL, a server-reachable API URL, an adapter, and an optional encrypted credential. Use a least-privileged credential for every integration.
+
+## Connection states
+
+- **Healthy:** the latest authenticated check completed normally.
+- **Degraded:** the service responded but returned an incomplete or incompatible result.
+- **Offline:** the service could not be reached before the adapter timeout.
+- **Unknown:** the service has not completed its first scheduled check.
+
+Detailed summaries are fetched only when needed and use short bounded caches. Native history is reused where an upstream application already provides it.

@@ -1,0 +1,20 @@
+---
+title: Operations and efficiency
+description: Poll responsibly, retain compact history, and keep resource use predictable.
+---
+
+The worker applies bounded concurrency, jitter, and exponential backoff. Stable services write a compact heartbeat rather than a full snapshot every cycle, and old records are pruned on a daily schedule.
+
+## Back up
+
+Back up the PostgreSQL volume, the environment configuration, and the credential master key. Test a restoration before relying on the backup.
+
+## Diagnose
+
+Check the dashboard and worker health separately. A healthy web process does not guarantee that scheduled discovery and polling are running.
+
+```bash
+docker compose ps
+docker compose logs --tail=200 worker
+docker compose exec postgres pg_isready
+```

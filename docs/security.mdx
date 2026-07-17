@@ -1,0 +1,18 @@
+---
+title: Security model
+description: Understand credentials, actions, network boundaries, and responsible disclosure.
+---
+
+## Credentials
+
+Upstream credentials are encrypted with AES-256-GCM before database storage. Back up the master key separately; losing it makes stored credentials unrecoverable.
+
+## Operational actions
+
+Mutations require an authenticated owner session, origin validation, explicit confirmation, duplicate-submission protection, rate limiting, and an audit record. Dashbored never mounts the raw Docker socket.
+
+## Exposure
+
+Keep Dashbored on a LAN or private overlay. Terminate HTTPS with a trusted reverse proxy before enabling passkeys. Do not publish the dashboard directly to the internet.
+
+Security reports should follow the private process described in `SECURITY.md` rather than a public issue.

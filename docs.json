@@ -1,0 +1,27 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Dashbored",
+  "description": "A private home-server operations console.",
+  "theme": "mint",
+  "colors": {
+    "primary": "#2563eb",
+    "light": "#3b82f6",
+    "dark": "#1d4ed8"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting started",
+        "pages": ["index", "quickstart"]
+      },
+      {
+        "group": "Integrations and guides",
+        "pages": ["portainer", "services", "launcher", "networking"]
+      },
+      {
+        "group": "Reference",
+        "pages": ["security", "operations", "contributing"]
+      }
+    ]
+  }
+}

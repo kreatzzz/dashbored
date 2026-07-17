@@ -1,0 +1,30 @@
+---
+title: Quickstart
+description: Start Dashbored with Docker Compose and connect your first provider.
+---
+
+## Requirements
+
+- Docker Engine with Compose v2
+- A private hostname or LAN address for Dashbored
+- A PostgreSQL volume with enough space for compact health history
+- A scoped Portainer access token for discovery
+
+## Configure
+
+Copy `.env.example` to `.env` and generate unique values for every secret. Never reuse a server login password as an application secret.
+
+```bash
+docker compose up -d --build
+```
+
+Open the configured dashboard URL, create the owner account, and add Portainer from **Settings**. The worker will populate Launcher after the first successful inventory sync.
+
+## Verify
+
+```bash
+docker compose ps
+docker compose logs --tail=100 dashboard worker
+```
+
+PostgreSQL should remain private to the Compose network. Only the dashboard port should be published.
