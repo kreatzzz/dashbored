@@ -172,14 +172,20 @@ export async function createService(formData: FormData): Promise<ServiceMutation
   }
 }
 
-export async function deleteService(formData: FormData) {
+export async function deleteService(formData: FormData): Promise<ServiceMutationState> {
   const session = await requireSession();
-  const id = z.string().min(1).parse(formData.get("id"));
-  const service = await prisma.serviceInstance.findUnique({ where: { id } });
-  if (!service) return;
-  await prisma.actionAudit.create({ data: { userId: session.user.id, action: "service-deleted", target: service.name, status: "success" } });
-  await prisma.$transaction(async (tx) => { await tx.serviceInstance.delete({ where: { id } }); if (service.credentialId) await tx.encryptedCredential.delete({ where: { id: service.credentialId } }); });
-  revalidateDashboardPaths();
+  const parsed = z.string().min(1).safeParse(formData.get("id"));
+  if (!parsed.success) return { status: "error", error: "This connection could not be identified. Refresh Settings and try again." };
+  try {
+    const service = await prisma.serviceInstance.findUnique({ where: { id: parsed.data } });
+    if (!service) return { status: "error", error: "This connection no longer exists. Refresh Settings and try again." };
+    await prisma.actionAudit.create({ data: { userId: session.user.id, action: "service-deleted", target: service.name, status: "success" } });
+    await prisma.$transaction(async (tx) => { await tx.serviceInstance.delete({ where: { id: parsed.data } }); if (service.credentialId) await tx.encryptedCredential.delete({ where: { id: service.credentialId } }); });
+    revalidateDashboardPaths();
+    return { status: "success" };
+  } catch {
+    return { status: "error", error: "Dashbored could not remove that connection. Try again, or refresh Settings first." };
+  }
 }
 
 const updateSchema = schema.extend({
