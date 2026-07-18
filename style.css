@@ -1,0 +1,21 @@
+/* Mintlify's dark-mode control can leave the document root on its light
+   background while nested components correctly switch to dark tokens. Keep
+   the override deliberately small: it fixes only the site canvas and lets
+   the selected Mintlify theme continue to style every component. */
+html.dark,
+html.dark body,
+html.dark #content-area {
+  background-color: #0a0a0a !important;
+}
+
+html.dark body {
+  color: #ededed;
+}
+
+/* The background must be established before prose paints, otherwise pale
+   dark-mode heading tokens are rendered against the light canvas. */
+html.dark h1,
+html.dark h2,
+html.dark h3 {
+  color: #ededed;
+}
