@@ -1,0 +1,80 @@
+---
+title: Private HTTPS and reverse proxies
+description: Put Dashbored behind a stable private hostname without exposing it to the public internet.
+---
+
+Use a stable private HTTPS origin before enabling passkeys or sharing Dashbored across your LAN. Keep the Compose dashboard bound to `127.0.0.1`; the proxy is the only process that should accept LAN traffic.
+
+This guide assumes `dashbored.home.arpa` resolves to the machine running Dashbored. See [Networking and private DNS](/docs/networking) to configure private DNS first.
+
+## Set the canonical origin
+
+Before starting the stack, put the browser-facing origin in your private environment file:
+
+```dotenv
+DASHBOARD_BIND_ADDRESS=127.0.0.1
+DASHBOARD_PORT=43821
+BETTER_AUTH_URL=https://dashbored.home.arpa
+BETTER_AUTH_TRUSTED_ORIGINS=https://dashbored.home.arpa
+```
+
+Restart the Compose stack after changing these values. Do not leave an old IP address, `.localhost` name, or port in `BETTER_AUTH_URL`: Better Auth treats every origin as a separate site and will reject protected requests from an untrusted one.
+
+## Caddy on the Dashbored host
+
+Caddy is the smallest path for a private TLS deployment. Add this to the host's Caddyfile:
+
+```caddy
+dashbored.home.arpa {
+  tls internal
+  reverse_proxy 127.0.0.1:43821 {
+    health_uri /api/health
+  }
+}
+```
+
+`tls internal` creates a certificate from Caddy's local CA. Install and trust that CA on each browser device, then reload Caddy. Keep the proxy host private—do not add public DNS records or port forwarding.
+
+## Nginx with a private certificate
+
+If your LAN already has a trusted internal certificate, Nginx works equally well. Replace the certificate paths and hostname below:
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name dashbored.home.arpa;
+
+  ssl_certificate     /etc/nginx/certs/dashbored.home.arpa.crt;
+  ssl_certificate_key /etc/nginx/certs/dashbored.home.arpa.key;
+
+  location / {
+    proxy_pass http://127.0.0.1:43821;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+Restrict TCP/443 to your LAN or private overlay at the firewall. Dashbored is intentionally not designed as an internet-facing control plane.
+
+## Tailscale Serve
+
+For private remote access, run Tailscale on the Dashbored host and point Serve at the loopback-bound dashboard:
+
+```bash
+tailscale serve --https=443 http://127.0.0.1:43821
+```
+
+Set `BETTER_AUTH_URL` and `BETTER_AUTH_TRUSTED_ORIGINS` to the exact `https://<machine>.<tailnet>.ts.net` URL that Tailscale presents. Use that same URL in the browser; it provides a stable HTTPS origin for passkeys without opening the service to the public internet.
+
+## Verify access
+
+From the Dashbored host:
+
+```bash
+curl -fsS http://127.0.0.1:43821/api/health
+```
+
+From a browser device, open the HTTPS hostname, sign in, and perform one non-destructive action such as opening the Launcher. If a protected action returns **Origin rejected**, compare the complete browser origin to `BETTER_AUTH_URL` and `BETTER_AUTH_TRUSTED_ORIGINS`, then restart the stack.

@@ -22,6 +22,17 @@ docker compose exec postgres pg_isready -U dashbored -d dashbored
 
 A healthy web process does not guarantee that scheduled discovery and polling are running. Check `worker` separately whenever dashboards look stale.
 
+## Web readiness
+
+The dashboard exposes a minimal unauthenticated readiness endpoint. It reports `200` only when the web process can also query PostgreSQL; it never returns application configuration, service health, or credentials.
+
+```bash
+curl -fsS http://127.0.0.1:43821/api/health
+# {"status":"ok"}
+```
+
+Compose uses this endpoint for the dashboard healthcheck. A private reverse proxy may use it for its own upstream health probe.
+
 ## Backup
 
 Back up all three of these items:

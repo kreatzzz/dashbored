@@ -71,7 +71,7 @@
     "groups": [
       {
         "group": "Getting started",
-        "pages": ["docs/index", "docs/quickstart", "docs/install", "docs/configuration", "docs/authentication"]
+        "pages": ["docs/index", "docs/quickstart", "docs/install", "docs/configuration", "docs/authentication", "docs/private-access"]
       },
       {
         "group": "Integrations and guides",

@@ -50,6 +50,7 @@ export const beszelAdapter: ServiceAdapter = {
     ] }] : [],
     details: [
       ...storage.slice(0, 2),
+      ...(temperature !== undefined ? [{ label: "Temperature", value: `${temperature.toFixed(1)}°C`, detail: "Latest sensor reading" }] : []),
       { label: "Network throughput", value: `${formatBytes(network[1])}/s down`, detail: `${formatBytes(network[0])}/s up` },
       { label: "Agent", value: info?.v ? `v${info.v}` : "Unknown", detail: `${primary?.name ?? "System"} · ${formatBytes(diskIo[0])}/s disk read` },
     ],
