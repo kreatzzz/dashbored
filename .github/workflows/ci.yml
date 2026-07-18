@@ -18,6 +18,9 @@ jobs:
         with:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
+      # The generated Prisma client is intentionally not committed. Generate it
+      # on the clean runner before TypeScript reads application imports.
+      - run: bun run db:generate
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test
