@@ -1,15 +1,58 @@
 ---
-title: Connect native services
-description: Add supported integrations without exposing their credentials to the browser.
+title: Service connections
+description: Add, edit, and troubleshoot native integrations and generic Launcher services.
 ---
 
-Each native service has a launch URL, a server-reachable API URL, an adapter, and an optional encrypted credential. Use a least-privileged credential for every integration.
+Each service has two URLs and, optionally, encrypted credentials. Configure the two URLs intentionally:
+
+| Field | Used by | Meaning |
+| --- | --- | --- |
+| Launch URL | Your browser | The page opened when you choose **Open app**. |
+| API base URL | Dashbored dashboard and worker | The server-side endpoint used for health, summaries, and actions. |
+
+They may be the same. They often differ when the dashboard runs in Docker and your browser uses a separate private DNS name.
+
+## Add or edit a service
+
+1. Open **Settings**.
+2. Choose **Add service** or edit a starter card.
+3. Select a category, icon, adapter, launch URL, and—if the adapter uses one—API base URL.
+4. Enter only the credential fields required by that adapter.
+5. Save, then wait for the worker's next sweep.
+
+When editing an existing service, leave credential fields blank to retain the stored encrypted values. Entering any new credential value replaces the saved credential set for that service.
 
 ## Connection states
 
-- **Healthy:** the latest authenticated check completed normally.
-- **Degraded:** the service responded but returned an incomplete or incompatible result.
-- **Offline:** the service could not be reached before the adapter timeout.
-- **Unknown:** the service has not completed its first scheduled check.
+| State | Meaning | First response |
+| --- | --- | --- |
+| Healthy | The latest check completed normally. | No action required. |
+| Degraded | The service responded, but some expected data was missing or incompatible. | Check service version, adapter guidance, and worker logs. |
+| Offline | Dashbored could not reach the service before the timeout. | Verify DNS, routing, service availability, and the API base URL. |
+| Unknown | No check has completed yet. | Confirm the worker is running and wait one interval. |
 
-Detailed summaries are fetched only when needed and use short bounded caches. Native history is reused where an upstream application already provides it.
+## Credentials
+
+Credentials are encrypted using AES-256-GCM before being stored in PostgreSQL. They are decrypted only in the server-side process that needs to call an upstream adapter. Dashbored does not display the existing secret after saving it.
+
+Use dedicated, least-privileged credentials. Never place credentials in a URL such as `https://user:password@host`; Dashbored rejects URLs containing embedded credentials.
+
+## Current adapter guidance
+
+| Adapter | Current use | Credential field |
+| --- | --- | --- |
+| Portainer | Supported inventory, Launcher discovery, and confirmed container actions | API key (Portainer access token) |
+| Generic launcher | Private HTTP(S) reachability and open-app link | None |
+| Beszel | Read-only telemetry where configured | Username and password |
+| AdGuard Home | DNS/filtering health where configured | Username and password |
+| Uptime Kuma | Read-only Prometheus metrics where configured | API key |
+| Jellyfin / Immich | Read-only media summaries where configured | API key |
+| Radarr / Sonarr / Prowlarr | Compatibility adapters; validate against your version before relying on data | API key where applicable |
+
+Portainer is the supported v1 integration. The remaining adapters are optional and may evolve; Generic Launcher is the reliable choice when an app does not have a mature native view.
+
+## URL rules
+
+Dashbored accepts only `http` and `https` URLs that resolve exclusively to private IPv4 LAN ranges, Tailscale CGNAT addresses, or private IPv6 addresses. It blocks loopback, link-local metadata addresses, public destinations, redirects, and embedded credentials.
+
+This means `localhost`, `127.0.0.1`, and a public reverse-proxy address cannot be used as an adapter URL. See [Networking](/docs/networking) for address patterns that work.

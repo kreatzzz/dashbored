@@ -1,0 +1,79 @@
+---
+title: Troubleshooting
+description: Diagnose installation, login, worker, service connection, and Portainer action problems.
+---
+
+Start with the stack state and logs. Keep logs private: redact service URLs, API keys, cookies, and tokens before sharing them.
+
+```bash
+docker compose ps
+docker compose logs --tail=200 dashboard worker migrate postgres
+```
+
+## I cannot open Dashbored
+
+1. Check `docker compose ps`; `dashboard` should be running and its health check should eventually pass.
+2. Confirm the configured `DASHBOARD_BIND_ADDRESS` and `DASHBOARD_PORT` match the address you are opening.
+3. If the default bind address is `127.0.0.1`, only the host can reach it. Use a reverse proxy or change the binding deliberately for a private LAN test.
+4. Verify the host firewall allows the chosen private port if accessing from another device.
+
+## Login fails or actions show “Origin rejected”
+
+`BETTER_AUTH_URL` must be the exact origin in the browser address bar. Add the same origin to `BETTER_AUTH_TRUSTED_ORIGINS`, then recreate dashboard and worker containers:
+
+```bash
+docker compose up -d --force-recreate dashboard worker
+```
+
+Sign in again after changing auth configuration. An IP address, `.local` name, and `home.arpa` name are different browser origins.
+
+## No owner account exists
+
+Check the migration container:
+
+```bash
+docker compose logs --tail=150 migrate
+```
+
+The first-run password must be at least 12 characters. If the database is new, correct `BOOTSTRAP_EMAIL` and `BOOTSTRAP_PASSWORD`, then rerun `migrate`. If a user already exists, bootstrap values do not replace that account.
+
+## A service stays Unknown
+
+The worker has not finished a successful check. Confirm it is running:
+
+```bash
+docker compose logs --tail=200 worker
+```
+
+Wait one poll interval, then confirm the service is enabled and its API base URL is set when the chosen adapter needs one.
+
+## A connection is Offline or the URL is rejected
+
+- The URL must use `http` or `https` and resolve only to a private LAN or Tailscale address.
+- Do not use `localhost` or `127.0.0.1`; inside the dashboard container they refer to Dashbored itself.
+- Do not include `/control`, `/api`, or another path unless that service is genuinely hosted beneath a subpath.
+- Verify the Dashbored container can resolve the service's name and reach its port.
+- Ensure any HTTPS certificate is trusted by the container; do not disable TLS verification globally.
+
+Read [Networking](/docs/networking) for safe address patterns.
+
+## Portainer is connected but Launcher is empty
+
+1. Verify the access token's user can see the expected environment and containers in Portainer.
+2. Wait for a worker sweep; discovery is scheduled work, not an immediate browser request.
+3. Check `worker` logs for a sanitized Portainer response error.
+4. Ensure the Portainer adapter—not Generic launcher—is selected for the configured Portainer service.
+
+## I cannot stop, start, or restart a container
+
+First ensure the browser origin is configured correctly; an **Origin rejected** message occurs before the request reaches Portainer. Then check the Portainer token account's permissions in the selected environment. A read-only token can discover containers but cannot mutate them.
+
+Containers with a Docker restart policy may return after a successful stop. Dashbored records the request; it does not override the container's deployment policy.
+
+## I lost the credential master key
+
+Saved upstream credentials cannot be decrypted without the original `CREDENTIAL_MASTER_KEY`. Restore it from a secure backup. If it is permanently lost, you must replace the key and re-enter credentials for every service; do not expect existing encrypted records to work.
+
+## I need more help
+
+For product bugs, open a GitHub issue with sanitized reproduction steps, Dashbored version, browser, deployment method, and relevant redacted logs. For a possible security issue, follow [Security model](/docs/security) and the private reporting process instead.

@@ -1,16 +1,60 @@
 ---
 title: Contributing
-description: Develop adapters and product changes without weakening Dashbored's safety boundaries.
+description: Develop product changes and integrations without weakening Dashbored's safety boundaries.
 ---
 
-Read `CONTRIBUTING.md`, `SECURITY.md`, `PRODUCT.md`, and `DESIGN.md` before opening a pull request.
+Read `CONTRIBUTING.md`, `SECURITY.md`, `PRODUCT.md`, and `DESIGN.md` before opening a pull request. Dashbored is a private operations console: security and operational clarity take precedence over adding every popular self-hosted app.
+
+## Development setup
 
 ```bash
 bun install
-bun run test
+cp .env.example .env
+docker compose up -d postgres
+bun run db:migrate
+bun run db:seed
+bun run dev:portless
+```
+
+Run the worker separately when changing polling or adapter behavior:
+
+```bash
+bun run worker
+```
+
+## Quality checks
+
+Run the applicable checks before opening a pull request:
+
+```bash
 bun run lint
 bun run typecheck
+bun run test
 bun run build
 ```
 
-New adapters must validate upstream payloads, use the private-network request guard, provide sanitized fixtures, define safe capabilities, and avoid generic proxy behavior. A popular application is not automatically a good native integration; the API must expose operational data that meaningfully improves the dashboard.
+Add focused tests for new adapter behavior, including healthy, unauthorized, offline, timeout, malformed, and incompatible upstream responses.
+
+## Adapter requirements
+
+A new adapter must:
+
+- validate upstream payloads defensively;
+- use the private-network request guard and short timeouts;
+- provide sanitized test fixtures—never captured production responses;
+- keep credentials and raw authenticated payloads on the server;
+- define explicit, narrow capabilities rather than a generic proxy;
+- give mutations confirmation, idempotency protection, rate limiting, and audit coverage;
+- explain why a native view is more useful than a Launcher card.
+
+A popular application is not automatically a good native integration. If the useful outcome is simply an app link plus container state, improve Launcher instead.
+
+## UI and documentation
+
+Follow the restrained operational visual direction in `DESIGN.md`: neutral surfaces, hairline borders, compact Geist typography, clear status colors, accessible focus, and no decorative dashboard clutter. Document every user-visible feature, configuration change, migration, and security implication in the Mintlify docs.
+
+For interface changes, include screenshots or a short recording in the pull request. Keep docs examples generic; never add private hostnames, addresses, tokens, credentials, database dumps, or `.env` files to Git.
+
+## Reporting issues
+
+Use public issues for reproducible non-sensitive bugs and feature proposals. Use the private process in `SECURITY.md` for authentication, authorization, request routing, credential handling, or data-disclosure concerns.

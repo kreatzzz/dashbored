@@ -1,20 +1,70 @@
 ---
-title: Operations and efficiency
+title: Operations, upgrades, and efficiency
 description: Poll responsibly, retain compact history, and keep resource use predictable.
 ---
 
-The worker applies bounded concurrency, jitter, and exponential backoff. Stable services write a compact heartbeat rather than a full snapshot every cycle, and old records are pruned on a daily schedule.
+Dashbored is designed to be quiet on a small home server. The dashboard does not continuously poll from every browser tab; the worker does the upstream work on a schedule and persists compact results for the UI.
 
-## Back up
+## Polling behavior
 
-Back up the PostgreSQL volume, the environment configuration, and the credential master key. Test a restoration before relying on the backup.
+The worker uses bounded concurrency, start-time jitter, and exponential backoff. A healthy service records a compact heartbeat rather than a full snapshot every cycle. When a service repeatedly fails, its next check is delayed instead of hammering an unavailable endpoint.
 
-## Diagnose
+Use the default one-minute interval unless you have a concrete operational need for faster updates. Reducing it increases CPU, database writes, and upstream API traffic across every enabled service.
 
-Check the dashboard and worker health separately. A healthy web process does not guarantee that scheduled discovery and polling are running.
+## Inspect the stack
 
 ```bash
 docker compose ps
+docker compose logs --tail=200 dashboard
 docker compose logs --tail=200 worker
-docker compose exec postgres pg_isready
+docker compose exec postgres pg_isready -U dashbored -d dashbored
 ```
+
+A healthy web process does not guarantee that scheduled discovery and polling are running. Check `worker` separately whenever dashboards look stale.
+
+## Backup
+
+Back up all three of these items:
+
+1. The PostgreSQL database or Compose volume.
+2. Your private environment file, including `BETTER_AUTH_SECRET` and `CREDENTIAL_MASTER_KEY`.
+3. The repository version or image tag you deployed.
+
+A database backup without its matching credential master key restores service records but cannot decrypt their saved credentials. A master key backup without the database does not restore configuration or history.
+
+Example logical backup:
+
+```bash
+docker compose exec -T postgres pg_dump -U dashbored dashbored > dashbored.sql
+```
+
+Store the database dump and environment secrets separately, encrypted, and test restoration on a non-production host.
+
+## Restore outline
+
+1. Stop the stack.
+2. Restore the database volume or create an empty database and import a logical dump.
+3. Restore the exact environment values, especially `CREDENTIAL_MASTER_KEY`.
+4. Start `postgres`, run migrations, then start the rest of the stack.
+5. Sign in and verify a service connection without triggering a container action.
+
+## Upgrade
+
+Read release notes, back up first, then rebuild and let the migration container complete:
+
+```bash
+git pull --ff-only
+docker compose build
+docker compose up -d
+docker compose ps
+```
+
+Do not delete volumes during a normal upgrade. Inspect `migrate` logs if `dashboard` or `worker` does not start; they depend on successful migrations.
+
+## Resource tuning
+
+- Keep `POLL_INTERVAL_MS` at 60 seconds or longer.
+- Disable or delete services you do not use.
+- Prefer Portainer inventory sync rather than separate generic checks for every container.
+- Keep PostgreSQL private and on local storage with regular backups.
+- Avoid dashboard replicas unless you also understand the worker's advisory locking behavior; one worker performs polling at a time.

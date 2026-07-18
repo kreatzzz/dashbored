@@ -12,13 +12,31 @@ description: Start Dashbored with Docker Compose and connect your first provider
 
 ## Configure
 
-Copy `.env.example` to `.env` and generate unique values for every secret. Never reuse a server login password as an application secret.
+For a local evaluation, the helper creates a private configuration file and starts the full stack:
+
+```bash
+bun run docker:local
+```
+
+Open `http://localhost:43821`. The generated credentials are in `.env.docker.local`; it is ignored by Git and should remain private.
+
+For a LAN or production installation, create your own `.env` from `.env.example`, generate unique values for every secret, and set the correct external address before starting Compose. Never reuse a server login password as an application secret.
 
 ```bash
 docker compose up -d --build
 ```
 
 Open the configured dashboard URL, create the owner account, and add Portainer from **Settings**. The worker will populate Launcher after the first successful inventory sync.
+
+## First-run checklist
+
+1. Run `docker compose ps` and wait for `postgres`, `dashboard`, and `worker` to show healthy or running.
+2. Sign in using `BOOTSTRAP_EMAIL` and `BOOTSTRAP_PASSWORD` from your environment file.
+3. Open **Settings** and edit the pre-created Portainer service rather than creating a duplicate.
+4. Enter a private, container-reachable Portainer URL and a scoped access token.
+5. Wait one polling interval (60 seconds by default), then open **Launcher**.
+
+The seed creates starter cards for common services. They are placeholders, not discovered configurations. Change their URLs, add credentials only where needed, or delete cards you do not use.
 
 ## Verify
 
@@ -28,3 +46,5 @@ docker compose logs --tail=100 dashboard worker
 ```
 
 PostgreSQL should remain private to the Compose network. Only the dashboard port should be published.
+
+Continue with [installation and deployment](/docs/install) for a LAN setup or [Portainer](/docs/portainer) to connect your first provider.

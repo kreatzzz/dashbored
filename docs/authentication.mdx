@@ -1,0 +1,49 @@
+---
+title: Authentication and owner access
+description: Sign in safely, use a stable origin, and understand first-run account creation.
+---
+
+Dashbored is an owner-operated console. Password sign-in is enabled, while self-service sign-up is disabled after the first-run migration completes.
+
+## First sign-in
+
+The `migrate` service creates the bootstrap owner only if no users exist in PostgreSQL. Sign in with `BOOTSTRAP_EMAIL` and `BOOTSTRAP_PASSWORD` from the deployment environment file.
+
+If the first account was not created, check migration logs:
+
+```bash
+docker compose logs --tail=150 migrate
+```
+
+The password must be at least 12 characters. Correct the private environment file, then rerun the migration service:
+
+```bash
+docker compose up --force-recreate migrate
+```
+
+Do not leave sign-up enabled as a workaround: the dashboard container and worker run with `ALLOW_SIGNUP=false`.
+
+## Origins and cookies
+
+Authentication uses the canonical `BETTER_AUTH_URL`. Set it to exactly what a browser uses, including `https://` and any non-default port. Add that origin to `BETTER_AUTH_TRUSTED_ORIGINS`.
+
+Examples:
+
+```dotenv
+BETTER_AUTH_URL=https://dashbored.home.arpa
+BETTER_AUTH_TRUSTED_ORIGINS=https://dashbored.home.arpa
+```
+
+For more than one approved private origin, separate origins with commas. Avoid mixing an IP address, `.local`, and a hostname unless each is explicitly configured; browser cookies and origin checks treat them as separate sites.
+
+## Passkeys
+
+Passkeys require a secure, stable browser origin. Use HTTPS through a trusted reverse proxy, a private certificate your devices trust, or a compatible private overlay. Do not rely on a raw HTTP IP address for passkey enrollment.
+
+If you change the hostname later, browsers treat it as a new relying party. Plan the final private hostname before enrolling passkeys.
+
+## Session behavior
+
+Sessions are stored in PostgreSQL, expire after 14 days, and are refreshed while active. Changing `BETTER_AUTH_SECRET` invalidates current sessions.
+
+Never share the bootstrap password, `BETTER_AUTH_SECRET`, or browser session cookies. See [Security model](/docs/security) for the rest of the protection model.

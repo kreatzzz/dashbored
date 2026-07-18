@@ -12,7 +12,7 @@
     "groups": [
       {
         "group": "Getting started",
-        "pages": ["docs/index", "docs/quickstart"]
+        "pages": ["docs/index", "docs/quickstart", "docs/install", "docs/configuration", "docs/authentication"]
       },
       {
         "group": "Integrations and guides",
@@ -20,7 +20,7 @@
       },
       {
         "group": "Reference",
-        "pages": ["docs/security", "docs/operations", "docs/contributing"]
+        "pages": ["docs/architecture", "docs/operations", "docs/security", "docs/troubleshooting", "docs/contributing"]
       }
     ]
   }

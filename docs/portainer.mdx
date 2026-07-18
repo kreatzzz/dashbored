@@ -1,18 +1,57 @@
 ---
 title: Connect Portainer
-description: Configure the only discovery and container-control provider supported in v1.
+description: Configure inventory discovery and confirmed container actions through Portainer.
 ---
 
-## Create a scoped token
+Portainer is Dashbored's supported v1 provider. One connection can power the container Launcher and permitted start, stop, and restart actions—without mounting the Docker socket into Dashbored.
 
-Create an access token in Portainer for an account that can read the selected environment. Grant container action permissions only when you intend to use start, stop, or restart from Dashbored.
+## Before connecting
+
+- Use a Portainer URL reachable from the **Dashbored container**, not just from your laptop.
+- Use a private IP, private DNS name, or Tailscale hostname. Public URLs and `localhost` are rejected by design.
+- Prefer HTTPS with a certificate trusted by the Dashbored host.
+- Create a dedicated Portainer account with access only to the environment that Dashbored should manage.
+
+## Create an access token
+
+1. Sign in to Portainer as the dedicated account.
+2. Open **My account** and create an **Access token**.
+3. Copy it once and store it in a password manager until it has been entered into Dashbored.
+4. Confirm the account can view the target environment and its containers.
+
+To allow actions, the Portainer account also needs permission to start, stop, and restart containers in that environment. Use a read-only account if you only want visibility and Launcher discovery.
 
 ## Add the connection
 
-In **Dashboard → Settings**, add Portainer's private HTTP or HTTPS URL, choose the Portainer adapter, and store the token as the API key. Prefer a certificate trusted by the Dashbored host.
+1. In Dashbored, open **Settings**.
+2. Open the seeded **Portainer** card, or choose **Add service**.
+3. Select **Portainer** as the adapter.
+4. Set **API base URL** to the Portainer origin, for example `https://portainer.home.arpa`.
+5. Set **Launch URL** to the browser-facing Portainer URL. It can differ from the API base URL if your browser and container resolve different names.
+6. Paste the access token in **API key** and save.
+7. Wait for the next worker sweep, then check the Portainer page and [Launcher](/docs/launcher).
 
-## Discovery behavior
+Do not append API paths such as `/api` to the base URL unless Portainer is served from an intentional subpath.
 
-Dashbored makes one Portainer inventory request per synchronization cycle. It does not probe every discovered container. Names, images, states, published ports, and labels are synchronized while user-defined names and launch URLs remain preserved.
+## Environment selection
 
-Launch URLs are inferred conservatively. User overrides always win, followed by recognized proxy labels and unambiguous published HTTP ports.
+Portainer can manage multiple environments. Dashbored discovers the environment associated with the connection and stores its identifier. If the connection succeeds but shows no expected containers, first verify that the Portainer token can see the intended environment.
+
+## Actions
+
+Dashbored labels actions as start, stop, or restart and requires an explicit confirmation before sending a request. Every mutation creates an audit record. A stopped container may be restarted automatically by its Docker restart policy or orchestration configuration; that behavior belongs to the container deployment, not Dashbored.
+
+If an action fails:
+
+1. Verify the container still exists in Portainer.
+2. Check that the token's account has action permission in the selected environment.
+3. Confirm `BETTER_AUTH_URL` and trusted origins match the address in your browser; an **Origin rejected** message is a Dashbored authentication-origin problem, not a Portainer credential problem.
+4. Check `docker compose logs --tail=150 dashboard` for the sanitized error.
+
+## Token rotation
+
+Create a replacement token in Portainer, then update the **API key** field in Dashbored. Saving replaces the encrypted credential record. Revoke the old token in Portainer after the new connection is healthy.
+
+<Note>
+Dashbored discovers metadata through Portainer. It does not scan arbitrary host ports or test every container endpoint. This keeps discovery predictable and avoids turning an inventory sync into a noisy network sweep.
+</Note>

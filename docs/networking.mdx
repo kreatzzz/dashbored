@@ -3,8 +3,57 @@ title: Networking and private DNS
 description: Choose addresses that work from both the Dashbored server and your browser.
 ---
 
-An adapter URL is requested by the Dashbored server, while a launch URL is opened by your browser. Those two addresses may differ.
+An adapter URL is requested by Dashbored's server-side processes, while a Launch URL is opened by your browser. Those two addresses may differ.
 
-Use `home.arpa` with your home DNS server for stable LAN names, or use a Tailscale hostname for private remote access. The `.local` suffix is multicast DNS and is normally limited to one network segment. The `.localhost` suffix always points back to the device opening it, which is why Portless URLs are development-only.
+## Recommended naming
 
-Dashbored accepts private LAN and Tailscale destinations. It blocks loopback, public, link-local, embedded-credential, and redirect-pivot upstream URLs.
+Use private DNS names under `home.arpa`, such as:
+
+```text
+dashbored.home.arpa
+portainer.home.arpa
+media.home.arpa
+```
+
+Configure your home DNS service or router to resolve these names to private addresses. This gives every device a stable address and makes it practical to use trusted HTTPS certificates.
+
+Tailscale hostnames also work well for private remote access, as long as the Dashbored container can resolve and reach them.
+
+## Name suffixes explained
+
+| Suffix or address | Use with Dashbored? | Why |
+| --- | --- | --- |
+| `home.arpa` | Recommended | Reserved for home networks and works with a DNS resolver. |
+| Tailscale hostname | Recommended | Private overlay networking with stable device names. |
+| `.local` | Situational | Multicast DNS; usually limited to one LAN segment and can be inconsistent across routers/VPNs. |
+| `.localhost` | Development only | Always resolves to the device opening the browser, not the Dashbored server. |
+| Raw private IP | Works for a quick test | Less convenient for TLS, bookmarks, and host changes. |
+| Public hostname | Rejected for upstream connections | Dashbored intentionally allows only private destinations. |
+
+## Docker's localhost trap
+
+Inside a container, `localhost` means that same container. If Dashbored is in Compose and Portainer runs on another host, `http://localhost:9443` points to Dashbored itself—not Portainer.
+
+Use one of these instead:
+
+- `https://portainer.home.arpa` when both DNS and routing work inside the container;
+- the other server's private LAN address, for a temporary test;
+- a Docker network service name only when both services share a deliberate network.
+
+## Private URL validation
+
+Before Dashbored connects to a service, it resolves the hostname and verifies that every answer is a permitted private address. It rejects:
+
+- loopback addresses such as `127.0.0.1`, `::1`, and `localhost`;
+- link-local addresses, including cloud-metadata ranges;
+- public IP addresses and hostnames resolving to them;
+- URLs with usernames or passwords embedded;
+- redirects from an otherwise safe private service.
+
+These checks protect against server-side request forgery and redirect pivots. They also mean an app must be reachable directly from Dashbored, not only via a public tunnel.
+
+## Access from another device
+
+The default Compose binding is `127.0.0.1`, so only the host machine can open Dashbored directly. For another machine, use a private reverse proxy or deliberately change `DASHBOARD_BIND_ADDRESS` to the host's private LAN address, apply firewall restrictions, and use the URL configured in `BETTER_AUTH_URL`.
+
+Do not change a bind address and keep an old `BETTER_AUTH_URL`; browser origin validation will reject authenticated actions. See [Configuration](/docs/configuration) and [Authentication](/docs/authentication).

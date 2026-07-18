@@ -1,0 +1,96 @@
+---
+title: Install and deploy
+description: Run Dashbored locally, on a private LAN, or behind a trusted reverse proxy.
+---
+
+## Deployment model
+
+Dashbored's Compose project runs four services:
+
+- `postgres` holds application data and is not published to the host network.
+- `migrate` applies Prisma migrations and seeds initial categories, starter services, and the bootstrap owner.
+- `dashboard` serves the web interface on port `3000` inside Compose.
+- `worker` performs scheduled service polling and Portainer discovery.
+
+Only `dashboard` has a host port. Keep the other three private to the Compose networks.
+
+## Local Docker setup
+
+This is the fastest option for trying Dashbored on the same machine:
+
+```bash
+git clone https://github.com/kreatzzz/dashbored.git
+cd dashbored
+bun install
+bun run docker:local
+```
+
+The helper creates `.env.docker.local` with generated passwords and binds the dashboard to `127.0.0.1:43821`. View the generated owner credentials in that file; do not commit or share it.
+
+Useful local commands:
+
+```bash
+bun run docker:local:status
+bun run docker:local:logs
+bun run docker:local:down
+```
+
+`down` stops containers but preserves the PostgreSQL volume. It does not erase dashboard data.
+
+## Private LAN setup
+
+1. Clone the repository on the server that will run Dashbored.
+2. Copy `.env.example` to `.env` and set every required value. Restrict it to the account running Docker:
+
+```bash
+chmod 600 .env
+```
+
+3. Set `BETTER_AUTH_URL` to the exact URL people will open, such as `https://dashbored.home.arpa`.
+4. Add that same origin to `BETTER_AUTH_TRUSTED_ORIGINS`.
+5. Choose a host binding. The default is loopback, which is safest behind a reverse proxy. For a direct, private-LAN test, set `DASHBOARD_BIND_ADDRESS` to the server's private address and enforce access with your firewall.
+6. Build and start:
+
+```bash
+docker compose up -d --build
+```
+
+7. Confirm the stack is running:
+
+```bash
+docker compose ps
+docker compose logs --tail=100 dashboard worker
+```
+
+## Reverse proxy and HTTPS
+
+For day-to-day access, use a private DNS name and terminate TLS with a trusted LAN reverse proxy or Tailscale. Proxy only the dashboard's published host port. Do not expose PostgreSQL, the worker, or the migration container.
+
+Set `BETTER_AUTH_URL` to the external HTTPS URL, not the internal Compose address. If you access Dashbored via multiple private origins, list the comma-separated origins in `BETTER_AUTH_TRUSTED_ORIGINS`.
+
+<Warning>
+Avoid publishing Dashbored directly to the public internet. It stores encrypted service credentials and can issue confirmed container actions through Portainer.
+</Warning>
+
+## Native development
+
+Use native development when changing the application:
+
+```bash
+cp .env.example .env
+bun install
+docker compose up -d postgres
+bun run db:migrate
+bun run db:seed
+bun run dev:portless
+```
+
+Run the worker separately:
+
+```bash
+bun run worker
+```
+
+Portless gives the development server an HTTPS `.localhost` URL and avoids choosing a fixed development port. It is development-only: `.localhost` resolves to the device opening the browser and is not a LAN hostname.
+
+See [Configuration](/docs/configuration) before using a non-local environment.

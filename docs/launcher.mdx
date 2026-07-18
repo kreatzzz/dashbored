@@ -1,14 +1,40 @@
 ---
 title: Launcher
-description: Use Portainer inventory as a lightweight application catalog.
+description: Use Portainer inventory as a lightweight, searchable application catalog.
 ---
 
-Launcher shows discovered containers and manually configured services in one searchable view. Unsupported applications receive a compact card with their name, image, state, and launch action instead of a pretend native dashboard.
+Launcher is the home for containers that do not need a full Dashbored integration. It is deliberately simple: a useful app card, the container's state, and an open action—not a fake dashboard full of guessed metrics.
 
-## Customize an entry
+## How discovery works
 
-You can rename an entry, replace its inferred URL, or hide it. These overrides are stored separately from discovered data and survive future Portainer synchronization.
+After a Portainer connection is healthy, the worker periodically reads its container inventory. It synchronizes container names, images, state, status text, exposed ports, and selected labels. It does not make a request to every discovered application.
 
-## Missing containers
+This makes discovery efficient on small servers and respects the difference between a Docker container's state and an application's own health.
 
-When a container disappears, Dashbored marks it unavailable before pruning old uncustomized records. Customized entries are retained so a redeployment does not silently discard your organization.
+## Launch URLs
+
+Dashbored tries to infer a launch URL only when it is unambiguous. It prefers explicit proxy labels and recognized published HTTP ports. An inferred URL is a convenience, not proof that an application is ready.
+
+Use the edit controls on a Launcher card to:
+
+- give the application a friendlier display name;
+- replace an inferred URL with the exact browser-facing URL;
+- hide an entry you do not want in the catalog.
+
+Overrides are stored separately from Portainer discovery data and survive future syncs.
+
+## Missing and recreated containers
+
+When Portainer no longer reports a container, Dashbored marks the entry unavailable. It later prunes old entries that have no customizations. Customized cards are retained, so a normal redeploy or container recreation does not silently remove your organization.
+
+## Recommended workflow
+
+1. Connect [Portainer](/docs/portainer).
+2. Wait for the worker to discover inventory.
+3. Open **Launcher** and hide infrastructure containers that are not useful to launch directly.
+4. Rename cards and set browser-facing URLs for the apps you actually use.
+5. Add a generic service in Settings only when you need a separate health check or a permanent manual card.
+
+<Note>
+The status shown on a Launcher card comes from Portainer's container state. A running container can still contain an unhealthy application; add a native adapter or a dedicated monitoring check when application-level availability matters.
+</Note>

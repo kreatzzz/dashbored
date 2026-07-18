@@ -7,16 +7,39 @@ Dashbored brings service health, practical controls, container discovery, and la
 
 ## One operational view
 
-Connect the services you already trust, then use the dashboard to see what needs attention before opening an individual application. Native integrations provide focused data; everything else can remain a lightweight Launcher entry.
+Connect the services you already trust, then use the dashboard to see what needs attention before opening an individual application. Native integrations provide focused data; everything else can remain a lightweight Launcher entry. Dashbored is deliberately not a generic proxy: your browser never receives upstream credentials or authenticated API responses.
 
-## Private by design
+## The core pieces
 
-Dashbored is intended for a LAN or private overlay such as Tailscale. Credentials are encrypted at rest, decrypted only server-side, and never returned to the browser.
+| Piece | What it does |
+| --- | --- |
+| Dashboard | The authenticated web console. It reads the database and renders service pages, history, actions, and Launcher. |
+| Worker | A separate, low-frequency process that checks configured services and synchronizes Portainer inventory. |
+| PostgreSQL | Stores settings, encrypted credentials, compact health snapshots, session records, and action audit events. |
+| Portainer connection | The v1 source of container inventory and the only provider able to perform container actions. |
 
-## Supported integrations
+## Before you begin
 
-- Portainer for discovery and confirmed container actions
-- Beszel for host and container telemetry
-- AdGuard Home for DNS activity and filtering health
-- Uptime Kuma for monitor availability and latency
-- Jellyfin and Immich are part of the supported-integration roadmap
+- Keep Dashbored and the services it can reach on a LAN, VPN, or private overlay such as Tailscale.
+- Decide on an address that the dashboard container can resolve and reach—usually a private DNS name such as `service.home.arpa`.
+- Use a unique password for the Dashbored owner account and unique, scoped credentials for each connected service.
+- Run the worker continuously. A running web UI alone does not update health or Launcher data.
+
+<Note>
+Dashbored's URL validation only permits private LAN and Tailscale destinations. This prevents the dashboard from becoming an arbitrary request relay.
+</Note>
+
+## Recommended path
+
+1. [Install Dashbored](/docs/install) with Docker Compose.
+2. [Set production configuration](/docs/configuration), including the authentication URL and encryption key.
+3. Sign in with the bootstrap owner account.
+4. [Connect Portainer](/docs/portainer) and allow the worker to discover containers.
+5. Use [Launcher](/docs/launcher) for every container that does not need a native dashboard.
+
+## Supported v1 integration
+
+- Portainer for discovery and confirmed container actions.
+- Generic Launcher entries for private HTTP(S) applications.
+
+Other adapters may appear in the interface while they mature. Treat Portainer as the supported v1 integration boundary and check [Service connections](/docs/services) for the current behavior of each adapter.

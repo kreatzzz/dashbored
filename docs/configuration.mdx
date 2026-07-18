@@ -1,0 +1,65 @@
+---
+title: Configuration reference
+description: Configure URLs, secrets, the bootstrap owner, polling, and documentation links.
+---
+
+Dashbored reads configuration from environment variables. Keep the environment file outside version control and do not paste its contents into issues, screenshots, or logs.
+
+## Required values
+
+| Variable | Purpose | Guidance |
+| --- | --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string | In Compose, it points at `postgres`, not `localhost`. |
+| `BETTER_AUTH_SECRET` | Signs authentication state | Generate at least 32 random bytes; changing it invalidates sessions. |
+| `BETTER_AUTH_URL` | Canonical browser-facing Dashbored origin | Must exactly match your external protocol, hostname, and port. |
+| `CREDENTIAL_MASTER_KEY` | AES-256-GCM key for upstream credentials | A base64-encoded 32-byte key. Back it up securely; do not rotate it casually. |
+| `BOOTSTRAP_EMAIL` | First owner account email | Used only when no user exists. |
+| `BOOTSTRAP_PASSWORD` | First owner account password | At least 12 characters; replace or protect it after initial setup. |
+| `POSTGRES_PASSWORD` | Compose database password | Required by `compose.yaml`; use a unique random value. |
+
+Generate safe values locally:
+
+```bash
+openssl rand -hex 32
+openssl rand -base64 32
+openssl rand -base64 24
+```
+
+## Optional values
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | empty | Comma-separated browser origins allowed to submit authenticated requests. Include each private hostname you use. |
+| `DASHBOARD_BIND_ADDRESS` | `127.0.0.1` | Address to publish the dashboard from Compose. Prefer loopback behind a proxy. |
+| `DASHBOARD_PORT` | `43821` | Host port mapped to the dashboard container. |
+| `POLL_INTERVAL_MS` | `60000` | Worker sweep interval in milliseconds. Keep it at or above one minute for modest servers. |
+| `SEED_SERVICE_HOST` | `server.home.arpa` | Host used for starter service card URLs during initial seeding. |
+| `NEXT_PUBLIC_DOCS_URL` | Dashbored Mintlify URL | Destination for in-app documentation links. |
+
+## Safe example
+
+```dotenv
+POSTGRES_PASSWORD=use-a-unique-random-value
+BETTER_AUTH_SECRET=use-a-unique-random-value
+BETTER_AUTH_URL=https://dashbored.home.arpa
+BETTER_AUTH_TRUSTED_ORIGINS=https://dashbored.home.arpa
+CREDENTIAL_MASTER_KEY=base64-encoded-32-byte-key
+BOOTSTRAP_EMAIL=owner@example.net
+BOOTSTRAP_PASSWORD=use-a-unique-long-password
+DASHBOARD_BIND_ADDRESS=127.0.0.1
+DASHBOARD_PORT=43821
+POLL_INTERVAL_MS=60000
+```
+
+## Important lifecycle rules
+
+- `BOOTSTRAP_EMAIL` and `BOOTSTRAP_PASSWORD` create the first user only when the database has no users. Changing them later does not change an existing account.
+- Losing `CREDENTIAL_MASTER_KEY` makes saved service credentials unrecoverable. Changing it without re-encrypting every record will break existing connections.
+- Changing `BETTER_AUTH_URL`, an origin, or `BETTER_AUTH_SECRET` can invalidate sessions. Sign in again after a deliberate change.
+- Restart the relevant Compose services after editing `.env`:
+
+```bash
+docker compose up -d --force-recreate dashboard worker migrate
+```
+
+For access and passkeys, see [Authentication](/docs/authentication).
