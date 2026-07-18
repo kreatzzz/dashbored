@@ -2,11 +2,70 @@
   "$schema": "https://mintlify.com/docs.json",
   "name": "Dashbored",
   "description": "A private home-server operations console.",
-  "theme": "mint",
+  "theme": "maple",
   "colors": {
-    "primary": "#2563eb",
-    "light": "#3b82f6",
-    "dark": "#1d4ed8"
+    "primary": "#0070f3",
+    "light": "#52a8ff",
+    "dark": "#0059c9"
+  },
+  "logo": {
+    "light": "/docs-assets/dashbored-logo-light.svg",
+    "dark": "/docs-assets/dashbored-logo-dark.svg",
+    "href": "https://github.com/kreatzzz/dashbored"
+  },
+  "favicon": {
+    "light": "/docs-assets/dashbored-favicon-light.svg",
+    "dark": "/docs-assets/dashbored-favicon-dark.svg"
+  },
+  "appearance": {
+    "default": "system",
+    "strict": false
+  },
+  "fonts": {
+    "family": "Geist",
+    "weight": 450
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "background": {
+    "color": {
+      "light": "#ffffff",
+      "dark": "#0a0a0a"
+    }
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs",
+    "codeblocks": "system"
+  },
+  "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/kreatzzz/dashbored"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/kreatzzz/dashbored"
+    },
+    "links": [
+      {
+        "header": "Project",
+        "items": [
+          { "label": "GitHub", "href": "https://github.com/kreatzzz/dashbored" },
+          { "label": "Report a security issue", "href": "https://github.com/kreatzzz/dashbored/security/advisories/new" }
+        ]
+      },
+      {
+        "header": "Documentation",
+        "items": [
+          { "label": "Quickstart", "href": "/docs/quickstart" },
+          { "label": "Troubleshooting", "href": "/docs/troubleshooting" }
+        ]
+      }
+    ]
   },
   "navigation": {
     "groups": [
