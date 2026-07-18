@@ -7,17 +7,17 @@ import { BrandMark } from "@/components/brand-mark";
 export default async function LoginPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (session) redirect("/dashboard");
-  return <main className="grid min-h-screen grid-cols-1 bg-background lg:grid-cols-[1.1fr_.9fr]">
-    <section className="relative hidden overflow-hidden border-r border-border bg-sidebar p-12 lg:flex lg:flex-col lg:justify-between">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,color-mix(in_srgb,var(--ds-blue-700)_7%,transparent),transparent_42%)]" />
-      <div className="auth-enter relative flex items-center gap-3"><BrandMark /><span className="text-sm font-medium">Dashbored Home Server</span></div>
+  return <main className="grid min-h-screen grid-cols-1 bg-[#f7f7f4] text-[#0b0b0a] lg:grid-cols-[1.1fr_.9fr]">
+    <section className="relative hidden overflow-hidden border-r border-black/10 p-12 lg:flex lg:flex-col lg:justify-between">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(#a8a89f_1px,transparent_1px)] [background-size:18px_18px]" />
+      <div className="relative flex items-center gap-3"><BrandMark /><span className="text-sm font-semibold">DASHBORED / HOME OPS</span></div>
       <div className="relative max-w-xl">
-        <p className="mb-4 text-sm text-muted-foreground">Private control plane</p>
-        <h1 className="auth-enter auth-enter-delay-1 text-balance text-5xl font-semibold leading-[1.04] tracking-[-.05em]">Everything at home,<br />within reach.</h1>
-        <p className="auth-enter auth-enter-delay-2 mt-6 max-w-[60ch] text-pretty text-sm leading-6 text-muted-foreground">Monitor services, review infrastructure health, and open every application from one secure dashboard.</p>
+        <p className="mono mb-5 text-[11px] tracking-[.22em] text-[#70706b]">PRIVATE CONTROL PLANE</p>
+        <h1 className="text-balance text-6xl font-semibold leading-[.98] tracking-[-.065em]">Everything at home,<br />within reach.</h1>
+        <div className="mt-10 flex items-center gap-3 text-sm text-[#70706b]"><span className="h-px w-12 bg-[#aaa9a1]" />LAN / TAILSCALE ONLY</div>
       </div>
-      <p className="auth-enter auth-enter-delay-3 mono relative text-xs text-muted-foreground">Private LAN · Tailscale</p>
+      <p className="relative mono text-[10px] tracking-widest text-[#8f8f86]">PRIVATE NETWORK · DASHBORED</p>
     </section>
-    <section className="flex items-center justify-center p-5 sm:p-8"><div className="auth-enter auth-enter-delay-1 w-full max-w-md rounded-xl bg-card p-7 shadow-[var(--surface-shadow)] sm:p-9"><div className="mb-10 lg:hidden"><BrandMark /></div><LoginForm /></div></section>
+    <section className="flex items-center justify-center p-6"><div className="w-full max-w-sm"><div className="mb-10 lg:hidden"><BrandMark /></div><LoginForm /></div></section>
   </main>;
 }
