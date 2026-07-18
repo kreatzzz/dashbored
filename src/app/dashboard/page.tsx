@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getAdapter, type SummaryResult } from "@/lib/adapters";
 import { getServiceContext } from "@/lib/services";
+import { PortainerOnboarding } from "@/components/portainer-onboarding";
 
 export default async function OverviewPage() {
   // The server component needs a database-relative lookback window; it does not run in a client render loop.
@@ -20,6 +21,16 @@ export default async function OverviewPage() {
     prisma.healthSnapshot.findMany({ where: { checkedAt: { gte: windowStart } }, orderBy: { checkedAt: "desc" }, take: 12000, select: { checkedAt: true, status: true } }),
     prisma.actionAudit.findMany({ orderBy: { createdAt: "desc" }, take: 5, include: { service: { select: { name: true } } } }),
   ]);
+  const hasPortainer = services.some((service) => service.adapterType === "portainer");
+  if (!hasPortainer) {
+    return <main>
+      <PageHeader eyebrow="Home / Overview" title="Overview" description="Connect your container inventory, then keep the rest of your home server one click away." actions={<Button asChild variant="outline" size="sm"><Link href="/dashboard/settings">Service catalog</Link></Button>} />
+      <div className="mx-auto max-w-[1160px] space-y-6 p-5 md:p-8">
+        <PortainerOnboarding />
+        <p className="text-center text-xs text-muted-foreground">Need only a launch link? You can add a Generic Launcher entry later from <Link href="/dashboard/settings" className="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">Settings</Link>.</p>
+      </div>
+    </main>;
+  }
   const healthy = services.filter((service) => service.lastStatus === "healthy").length;
   const degraded = services.filter((service) => service.lastStatus === "degraded").length;
   const offline = services.filter((service) => service.lastStatus === "offline").length;

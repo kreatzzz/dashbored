@@ -8,7 +8,7 @@ description: Run Dashbored locally, on a private LAN, or behind a trusted revers
 Dashbored's Compose project runs four services:
 
 - `postgres` holds application data and is not published to the host network.
-- `migrate` applies Prisma migrations and seeds initial categories, starter services, and the bootstrap owner.
+- `migrate` applies Prisma migrations and seeds initial categories plus the bootstrap owner.
 - `dashboard` serves the web interface on port `3000` inside Compose.
 - `worker` performs scheduled service polling and Portainer discovery.
 

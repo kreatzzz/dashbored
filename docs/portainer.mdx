@@ -24,18 +24,17 @@ To allow actions, the Portainer account also needs permission to start, stop, an
 ## Add the connection
 
 1. In Dashbored, open **Settings**.
-2. Open the seeded **Portainer** card, or choose **Add service**.
-3. Select **Portainer** as the adapter.
-4. Set **API base URL** to the Portainer origin, for example `https://portainer.home.arpa`.
-5. Set **Launch URL** to the browser-facing Portainer URL. It can differ from the API base URL if your browser and container resolve different names.
-6. Paste the access token in **API key** and save.
-7. Wait for the next worker sweep, then check the Portainer page and [Launcher](/docs/launcher).
+2. From a fresh install, use **Overview → Connect Portainer**. For an existing dashboard, choose **Add service** and select **Portainer**.
+3. Set **Portainer URL** to the API origin, for example `https://portainer.home.arpa`.
+4. Paste the access token and choose the environment ID (normally `1`).
+5. Optionally set a separate browser-facing URL when the browser and container use different private names.
+6. Save, wait for the next worker sweep, then check the Portainer page and [Launcher](/docs/launcher).
 
 Do not append API paths such as `/api` to the base URL unless Portainer is served from an intentional subpath.
 
 ## Environment selection
 
-Portainer can manage multiple environments. Dashbored discovers the environment associated with the connection and stores its identifier. If the connection succeeds but shows no expected containers, first verify that the Portainer token can see the intended environment.
+Portainer can manage multiple environments. Dashbored uses the environment ID entered with the connection (default `1`). If the connection succeeds but shows no expected containers, confirm that ID in Portainer and verify the token can see the intended environment.
 
 ## Actions
 

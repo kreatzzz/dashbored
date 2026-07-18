@@ -26,17 +26,17 @@ For a LAN or production installation, create your own `.env` from `.env.example`
 docker compose up -d --build
 ```
 
-Open the configured dashboard URL, create the owner account, and add Portainer from **Settings**. The worker will populate Launcher after the first successful inventory sync.
+Open the configured dashboard URL and sign in with the bootstrap owner account. A fresh Overview starts empty on purpose: choose **Connect Portainer**, then the worker will populate Launcher after the first successful inventory sync.
 
 ## First-run checklist
 
 1. Run `docker compose ps` and wait for `postgres`, `dashboard`, and `worker` to show healthy or running.
 2. Sign in using `BOOTSTRAP_EMAIL` and `BOOTSTRAP_PASSWORD` from your environment file.
-3. Open **Settings** and edit the pre-created Portainer service rather than creating a duplicate.
-4. Enter a private, container-reachable Portainer URL and a scoped access token.
+3. On **Overview**, choose **Connect Portainer**.
+4. Enter a private, container-reachable Portainer URL, a scoped access token, and the environment ID (normally `1`).
 5. Wait one polling interval (60 seconds by default), then open **Launcher**.
 
-The seed creates starter cards for common services. They are placeholders, not discovered configurations. Change their URLs, add credentials only where needed, or delete cards you do not use.
+Dashbored does not seed placeholder service cards or example URLs. Your first cards come from real Portainer inventory. Add Generic Launcher entries later only for applications you want to open directly.
 
 ## Verify
 
