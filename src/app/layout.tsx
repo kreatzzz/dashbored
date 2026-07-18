@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { Agentation } from "agentation";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -9,5 +10,5 @@ export const metadata: Metadata = { title: "Dashbored — Home operations", desc
 const themeScript = `(() => { try { const saved = localStorage.getItem('console-theme'); const dark = saved === 'dark' || (!saved && matchMedia('(prefers-color-scheme: dark)').matches); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; document.documentElement.classList.toggle('dark', dark); } catch {} })()`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head><body className={`${GeistSans.variable} ${GeistMono.variable} antialiased [font-synthesis:none]`}><Toaster position="bottom-right" richColors />{children}</body></html>;
+  return <html lang="en" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head><body className={`${GeistSans.variable} ${GeistMono.variable} antialiased [font-synthesis:none]`}><Toaster position="bottom-right" richColors />{children}{process.env.NODE_ENV === "development" && <Agentation />}</body></html>;
 }
