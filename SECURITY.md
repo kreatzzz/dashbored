@@ -13,3 +13,7 @@ If private reporting is not enabled, open a minimal public issue asking for a pr
 ## Scope notes
 
 Dashbored stores service credentials and can make requests to configured private services. Reports involving authentication, authorization, credential encryption, server-side request handling, action execution, or disclosure of configuration data are especially helpful.
+
+## Automated checks
+
+The public repository runs dependency update checks and CodeQL analysis for TypeScript and GitHub Actions workflows. These checks reduce regressions but are not a substitute for responsible disclosure or a complete security review before a release.

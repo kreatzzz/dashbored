@@ -35,6 +35,10 @@ Use a read-only Portainer token if you do not need actions. Keep the owner passw
 - Keep `.env`, database dumps, and backups out of Git, screenshots, and public issue reports.
 - Apply updates after reviewing release notes and taking a backup.
 
+## Continuous security checks
+
+The public project uses dependency update automation and CodeQL analysis for TypeScript and workflow changes. Treat alerts as release-blocking until they are understood, fixed, or explicitly documented as a false positive. These automated checks complement—rather than replace—private vulnerability reports and a manual review of sensitive changes.
+
 ## What Dashbored does not do
 
 - It does not expose a generic upstream proxy to the browser.
