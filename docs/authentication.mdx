@@ -23,6 +23,33 @@ docker compose up --force-recreate migrate
 
 Do not leave sign-up enabled as a workaround: the dashboard container and worker run with `ALLOW_SIGNUP=false`.
 
+## Change or recover the owner account
+
+Dashbored is single-owner by default. Change the owner email and password from the deployment host with the recovery command; do not edit the Better Auth tables manually.
+
+The password is read from standard input, so it never appears in the command history. The command also revokes every existing owner session.
+
+```bash
+read -r -s -p "New Dashbored password: " DASHBORED_NEW_PASSWORD
+printf "\n"
+printf '%s' "$DASHBORED_NEW_PASSWORD" | docker compose exec -T dashboard bun run owner:reset -- --email owner@example.com --password-stdin
+unset DASHBORED_NEW_PASSWORD
+```
+
+If more than one user exists, explicitly choose the current owner to avoid changing the wrong account:
+
+```bash
+printf '%s' "$DASHBORED_NEW_PASSWORD" | docker compose exec -T dashboard bun run owner:reset -- --current-email previous-owner@example.com --email owner@example.com --password-stdin
+```
+
+Run the command on the Docker host and use the same Compose project and environment file as the deployment. For a published image, upgrade to an image version that includes this command first.
+
+## Additional users
+
+There is no public sign-up page in v0.1. The dashboard deliberately runs with `ALLOW_SIGNUP=false` after bootstrap, because it controls private infrastructure. Do not expose a public registration form for a home-server control plane.
+
+Multi-user access needs an explicit invitation and role model—not an environment flag alone—and is planned separately. Until then, share neither the owner password nor the dashboard outside the people permitted to operate the host.
+
 ## Origins and cookies
 
 Authentication uses the canonical `BETTER_AUTH_URL`. Set it to exactly what a browser uses, including `https://` and any non-default port. Add that origin to `BETTER_AUTH_TRUSTED_ORIGINS`.

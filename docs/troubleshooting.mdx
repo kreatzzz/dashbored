@@ -37,6 +37,8 @@ docker compose logs --tail=150 migrate
 
 The first-run password must be at least 12 characters. If the database is new, correct `BOOTSTRAP_EMAIL` and `BOOTSTRAP_PASSWORD`, then rerun `migrate`. If a user already exists, bootstrap values do not replace that account.
 
+To rotate or recover an existing owner account, use the documented [owner recovery command](/docs/authentication#change-or-recover-the-owner-account). It updates the Better Auth password hash and revokes existing sessions without exposing credentials in shell history.
+
 ## A service stays Unknown
 
 The worker has not finished a successful check. Confirm it is running:
