@@ -21,6 +21,7 @@ const portainerConnectionSchema = z.object({
 });
 
 export type PortainerConnectionState = { status: "idle" | "success" | "error"; error?: string; message?: string };
+export type ServiceMutationState = { status: "idle" | "success" | "error"; error?: string };
 
 const initialPortainerConnectionState: PortainerConnectionState = { status: "idle" };
 
@@ -146,21 +147,27 @@ function missingEnvironmentMessage(environments: PortainerEnvironment[]) {
   return `That environment ID is not available to this token. Available: ${choices}${suffix}.`;
 }
 
-export async function createService(formData: FormData) {
+export async function createService(formData: FormData): Promise<ServiceMutationState> {
   const session = await requireSession();
-  const parsed = schema.parse(Object.fromEntries(formData));
-  if (parsed.baseUrl) await assertPrivateServiceUrl(parsed.baseUrl);
-  await assertPrivateServiceUrl(parsed.launchUrl);
-  const credentials = Object.fromEntries(Object.entries({ username: parsed.username, password: parsed.password, apiKey: parsed.apiKey, token: parsed.token }).filter(([, value]) => value));
-  const encrypted = Object.keys(credentials).length ? encryptCredential(credentials as Record<string, string>) : null;
-  const slugBase = parsed.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const slug = `${slugBase}-${crypto.randomUUID().slice(0, 5)}`;
-  const service = await prisma.$transaction(async (tx) => {
-    const credential = encrypted ? await tx.encryptedCredential.create({ data: encrypted }) : null;
-    return tx.serviceInstance.create({ data: { name: parsed.name, slug, categoryId: parsed.categoryId, adapterType: parsed.adapterType, icon: parsed.icon, baseUrl: parsed.baseUrl || null, launchUrl: parsed.launchUrl, description: parsed.description, credentialId: credential?.id } });
-  });
-  await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: service.id, action: "service-created", status: "success" } });
-  revalidateDashboardPaths();
+  const parsed = schema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { status: "error", error: "Enter a name, category, and a valid private browser URL." };
+  try {
+    if (parsed.data.baseUrl) await assertPrivateServiceUrl(parsed.data.baseUrl);
+    await assertPrivateServiceUrl(parsed.data.launchUrl);
+    const credentials = Object.fromEntries(Object.entries({ username: parsed.data.username, password: parsed.data.password, apiKey: parsed.data.apiKey, token: parsed.data.token }).filter(([, value]) => value));
+    const encrypted = Object.keys(credentials).length ? encryptCredential(credentials as Record<string, string>) : null;
+    const slugBase = parsed.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slug = `${slugBase}-${crypto.randomUUID().slice(0, 5)}`;
+    const service = await prisma.$transaction(async (tx) => {
+      const credential = encrypted ? await tx.encryptedCredential.create({ data: encrypted }) : null;
+      return tx.serviceInstance.create({ data: { name: parsed.data.name, slug, categoryId: parsed.data.categoryId, adapterType: parsed.data.adapterType, icon: parsed.data.icon, baseUrl: parsed.data.baseUrl || null, launchUrl: parsed.data.launchUrl, description: parsed.data.description, credentialId: credential?.id } });
+    });
+    await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: service.id, action: "service-created", status: "success" } });
+    revalidateDashboardPaths();
+    return { status: "success" };
+  } catch (error) {
+    return { status: "error", error: serviceMutationError(error) };
+  }
 }
 
 export async function deleteService(formData: FormData) {
@@ -178,28 +185,40 @@ const updateSchema = schema.extend({
   endpointId: z.preprocess((value) => value === "" || value === null ? undefined : value, z.coerce.number().int().min(1).max(1_000_000).optional()),
 });
 
-export async function updateService(formData: FormData) {
+export async function updateService(formData: FormData): Promise<ServiceMutationState> {
   const session = await requireSession();
-  const parsed = updateSchema.parse(Object.fromEntries(formData));
-  if (parsed.baseUrl) await assertPrivateServiceUrl(parsed.baseUrl);
-  await assertPrivateServiceUrl(parsed.launchUrl);
-  const existing = await prisma.serviceInstance.findUnique({ where: { id: parsed.id } });
-  if (!existing) throw new Error("Service not found");
-  const credentials = Object.fromEntries(Object.entries({ username: parsed.username, password: parsed.password, apiKey: parsed.apiKey, token: parsed.token }).filter(([, value]) => value));
-  const existingConfiguration = existing.configuration && typeof existing.configuration === "object" && !Array.isArray(existing.configuration)
-    ? existing.configuration as Record<string, unknown>
-    : {};
-  const configuration = parsed.endpointId === undefined ? undefined : { ...existingConfiguration, endpointId: parsed.endpointId };
-  await prisma.$transaction(async (tx) => {
-    let credentialId = existing.credentialId;
-    if (Object.keys(credentials).length) {
-      const encrypted = encryptCredential(credentials as Record<string, string>);
-      if (credentialId) await tx.encryptedCredential.update({ where: { id: credentialId }, data: encrypted });
-      else credentialId = (await tx.encryptedCredential.create({ data: encrypted })).id;
-    }
-    await tx.serviceInstance.update({ where: { id: parsed.id }, data: { name: parsed.name, categoryId: parsed.categoryId, adapterType: parsed.adapterType, icon: parsed.icon, description: parsed.description, baseUrl: parsed.baseUrl || null, launchUrl: parsed.launchUrl, credentialId, configuration } });
-  });
-  await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: parsed.id, action: "service-updated", status: "success" } });
-  revalidateDashboardPaths();
-  revalidatePath(`/dashboard/services/${existing.slug}`);
+  const parsed = updateSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { status: "error", error: "Check the required connection fields and try again." };
+  try {
+    if (parsed.data.baseUrl) await assertPrivateServiceUrl(parsed.data.baseUrl);
+    await assertPrivateServiceUrl(parsed.data.launchUrl);
+    const existing = await prisma.serviceInstance.findUnique({ where: { id: parsed.data.id } });
+    if (!existing) return { status: "error", error: "This connection no longer exists. Refresh Settings and try again." };
+    const credentials = Object.fromEntries(Object.entries({ username: parsed.data.username, password: parsed.data.password, apiKey: parsed.data.apiKey, token: parsed.data.token }).filter(([, value]) => value));
+    const existingConfiguration = existing.configuration && typeof existing.configuration === "object" && !Array.isArray(existing.configuration)
+      ? existing.configuration as Record<string, unknown>
+      : {};
+    const configuration = parsed.data.endpointId === undefined ? undefined : { ...existingConfiguration, endpointId: parsed.data.endpointId };
+    await prisma.$transaction(async (tx) => {
+      let credentialId = existing.credentialId;
+      if (Object.keys(credentials).length) {
+        const encrypted = encryptCredential(credentials as Record<string, string>);
+        if (credentialId) await tx.encryptedCredential.update({ where: { id: credentialId }, data: encrypted });
+        else credentialId = (await tx.encryptedCredential.create({ data: encrypted })).id;
+      }
+      await tx.serviceInstance.update({ where: { id: parsed.data.id }, data: { name: parsed.data.name, categoryId: parsed.data.categoryId, adapterType: parsed.data.adapterType, icon: parsed.data.icon, description: parsed.data.description, baseUrl: parsed.data.baseUrl || null, launchUrl: parsed.data.launchUrl, credentialId, configuration } });
+    });
+    await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: parsed.data.id, action: "service-updated", status: "success" } });
+    revalidateDashboardPaths();
+    revalidatePath(`/dashboard/services/${existing.slug}`);
+    return { status: "success" };
+  } catch (error) {
+    return { status: "error", error: serviceMutationError(error) };
+  }
+}
+
+function serviceMutationError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (/private|loopback|HTTP\(S\)|credentials must not/i.test(message)) return message;
+  return "Dashbored could not save that connection. Check the values and try again.";
 }
