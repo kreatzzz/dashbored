@@ -79,7 +79,7 @@
       },
       {
         "group": "Reference",
-        "pages": ["docs/architecture", "docs/operations", "docs/security", "docs/troubleshooting", "docs/contributing"]
+        "pages": ["docs/architecture", "docs/operations", "docs/releases", "docs/security", "docs/troubleshooting", "docs/contributing"]
       }
     ]
   }

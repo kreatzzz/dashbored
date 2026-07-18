@@ -20,7 +20,11 @@
     "docker:local": "bash scripts/docker-local.sh up",
     "docker:local:down": "bash scripts/docker-local.sh down",
     "docker:local:logs": "bash scripts/docker-local.sh logs",
-    "docker:local:status": "bash scripts/docker-local.sh status"
+    "docker:local:status": "bash scripts/docker-local.sh status",
+    "backup": "bash scripts/backup.sh",
+    "backup:local": "DASHBORED_COMPOSE_PROJECT=dashbored-local DASHBORED_COMPOSE_ENV_FILE=.env.docker.local bash scripts/backup.sh",
+    "restore": "bash scripts/restore.sh",
+    "restore:local": "DASHBORED_COMPOSE_PROJECT=dashbored-local DASHBORED_COMPOSE_ENV_FILE=.env.docker.local bash scripts/restore.sh"
   },
   "dependencies": {
     "@better-auth/passkey": "^1.6.23",

@@ -40,6 +40,16 @@ docker compose exec -T postgres pg_dump -U dashbored dashbored > dashbored.sql
 
 Store the database dump and environment secrets separately, encrypted, and test restoration on a non-production host.
 
+The source deployment includes a safe backup helper:
+
+```bash
+bun run backup
+```
+
+It creates a gzipped PostgreSQL dump and SHA-256 checksum in `backups/` with restrictive file permissions. It deliberately does not copy `.env`; preserve that file using your established encrypted backup system because it contains the credential master key.
+
+For a stack started with `bun run docker:local`, use `bun run backup:local` instead.
+
 ## Restore outline
 
 1. Stop the stack.
@@ -47,6 +57,14 @@ Store the database dump and environment secrets separately, encrypted, and test 
 3. Restore the exact environment values, especially `CREDENTIAL_MASTER_KEY`.
 4. Start `postgres`, run migrations, then start the rest of the stack.
 5. Sign in and verify a service connection without triggering a container action.
+
+The restore helper is intentionally explicit because it drops and recreates the Dashbored database:
+
+```bash
+bun run restore -- /absolute/path/to/dashbored.sql.gz --confirm=RESTORE
+```
+
+For a local helper-created stack, use `bun run restore:local -- /absolute/path/to/dashbored.sql.gz --confirm=RESTORE`. The script verifies a neighboring `.sha256` file when present, stops the web and worker services, restores the database, then starts the stack again.
 
 ## Upgrade
 
@@ -60,6 +78,8 @@ docker compose ps
 ```
 
 Do not delete volumes during a normal upgrade. Inspect `migrate` logs if `dashboard` or `worker` does not start; they depend on successful migrations.
+
+For published-image deployments, follow [Releases and upgrades](/docs/releases).
 
 ## Resource tuning
 

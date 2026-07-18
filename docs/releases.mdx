@@ -1,0 +1,73 @@
+---
+title: Releases and upgrades
+description: Deploy an immutable Dashbored image, verify its provenance, and upgrade safely.
+---
+
+Dashbored publishes release images to GitHub Container Registry for version tags. Choose an immutable version such as `0.1.0`, not the moving `latest` tag.
+
+## Install from a release image
+
+1. Download `compose.ghcr.yaml` and `.env.example` from the matching release tag.
+2. Create a private `.env` file and set all required values as described in [Configuration](/docs/configuration).
+3. Add the selected immutable image tag:
+
+```dotenv
+DASHBORED_IMAGE=ghcr.io/kreatzzz/dashbored:0.1.0
+```
+
+4. Verify the image provenance before pulling it:
+
+```bash
+gh attestation verify oci://ghcr.io/kreatzzz/dashbored:0.1.0 --repo kreatzzz/dashbored
+```
+
+5. Pull and start the release stack:
+
+```bash
+docker compose -f compose.ghcr.yaml pull
+docker compose -f compose.ghcr.yaml up -d
+```
+
+The release Compose file keeps PostgreSQL private and publishes only the dashboard port.
+
+## Upgrade
+
+1. Read the release notes in `CHANGELOG.md` and take a backup.
+2. Change only `DASHBORED_IMAGE` to the next immutable version.
+3. Pull and start the stack again:
+
+```bash
+docker compose -f compose.ghcr.yaml pull
+docker compose -f compose.ghcr.yaml up -d
+docker compose -f compose.ghcr.yaml ps
+```
+
+The `migrate` service runs Prisma migrations before the dashboard and worker start. Do not delete the PostgreSQL volume during a normal upgrade.
+
+## Back up and restore
+
+When using the source Compose file, run:
+
+```bash
+bun run backup
+```
+
+It creates a gzipped logical dump and SHA-256 checksum in `backups/`. The release Compose command is equivalent:
+
+```bash
+docker compose -f compose.ghcr.yaml exec -T postgres pg_dump --no-owner --no-privileges -U dashbored dashbored | gzip -9 > dashbored.sql.gz
+```
+
+Keep the backup's matching `.env` file in a separate encrypted system. Its `CREDENTIAL_MASTER_KEY` is needed to decrypt stored service credentials after recovery.
+
+To restore, start only PostgreSQL, verify the dump's checksum, then import it into a clean or intentionally replaced database. Restoring overwrites data and must be practiced on a non-production host before relying on it.
+
+For a source deployment, the guarded helper performs this sequence:
+
+```bash
+bun run restore -- /absolute/path/to/dashbored.sql.gz --confirm=RESTORE
+```
+
+<Warning>
+Never use a raw database dump or `.env` file from an untrusted source. They can contain credentials, session data, and malicious SQL.
+</Warning>

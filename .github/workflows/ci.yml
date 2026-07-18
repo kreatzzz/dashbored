@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
@@ -22,3 +22,32 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run build
+
+  container:
+    name: Validate container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate Compose interpolation
+        env:
+          POSTGRES_PASSWORD: ci-postgres-password-not-for-production
+          BETTER_AUTH_SECRET: ci-auth-secret-not-for-production-0123456789
+          BETTER_AUTH_URL: http://localhost:43821
+          CREDENTIAL_MASTER_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+          BOOTSTRAP_EMAIL: ci@example.test
+          BOOTSTRAP_PASSWORD: ci-bootstrap-password-not-for-production
+          DASHBORED_IMAGE: ghcr.io/kreatzzz/dashbored:0.1.0
+        run: docker compose config --quiet
+      - name: Validate release-image Compose file
+        env:
+          POSTGRES_PASSWORD: ci-postgres-password-not-for-production
+          BETTER_AUTH_SECRET: ci-auth-secret-not-for-production-0123456789
+          BETTER_AUTH_URL: http://localhost:43821
+          CREDENTIAL_MASTER_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+          BOOTSTRAP_EMAIL: ci@example.test
+          BOOTSTRAP_PASSWORD: ci-bootstrap-password-not-for-production
+          DASHBORED_IMAGE: ghcr.io/kreatzzz/dashbored:0.1.0
+        run: docker compose -f compose.ghcr.yaml config --quiet
+      - name: Build production image
+        run: docker build --tag dashbored:ci .

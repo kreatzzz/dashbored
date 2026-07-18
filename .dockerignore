@@ -2,6 +2,7 @@ node_modules
 .next
 .git
 .env*
+!.env.example
 *.pem
 *.key
 *.p12
@@ -13,3 +14,6 @@ work
 *.tsbuildinfo
 *.log
 .DS_Store
+.github
+.impeccable
+src/generated

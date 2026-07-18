@@ -4,6 +4,7 @@ node_modules
 .impeccable
 work/
 coverage
+backups/
 .env
 .env.*
 !.env.example
