@@ -58,13 +58,20 @@ function RefreshInventoryButton({ providers }: { providers: Provider[] }) {
   async function refresh() {
     setLoading(true);
     try {
-      const results = await Promise.all(providers.map(async (provider) => {
+      const results = await Promise.allSettled(providers.map(async (provider) => {
         const response = await fetch("/api/launchers/discover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ providerId: provider.id }) });
         const result = await response.json() as { discovered?: number; error?: string };
         if (!response.ok) throw new Error(result.error ?? `Could not refresh ${provider.name}`);
         return result.discovered ?? 0;
       }));
-      toast.success(`Refreshed ${results.reduce((total, value) => total + value, 0)} containers`);
+      const successful = results.filter((result): result is PromiseFulfilledResult<number> => result.status === "fulfilled");
+      const failed = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
+      if (!successful.length) {
+        const firstError = failed[0]?.reason;
+        throw firstError instanceof Error ? firstError : new Error("Inventory refresh failed");
+      }
+      const discovered = successful.reduce((total, result) => total + result.value, 0);
+      toast.success(failed.length ? `Refreshed ${discovered} containers; ${failed.length} connection${failed.length === 1 ? "" : "s"} could not be refreshed.` : `Refreshed ${discovered} containers`);
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Inventory refresh failed");
