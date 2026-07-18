@@ -28,7 +28,7 @@ export function PortainerOnboarding() {
       <div className="divide-y divide-border bg-muted/20">
         <OnboardingStep icon={KeyRound} number="01" title="Connect Portainer" description="Use a private URL and scoped access token. Dashbored selects the first environment it can access." active />
         <OnboardingStep icon={ScanSearch} number="02" title="Review inventory" description="The worker reads container metadata once per interval. It does not probe every container endpoint." />
-        <OnboardingStep icon={Check} number="03" title="Use the Launcher" description="Running containers with safe published ports appear as compact launch cards, ready to open." />
+        <OnboardingStep icon={Check} number="03" title="Activate native views" description="Supported containers appear in the sidebar as Setup. Add their own credentials to activate the tailored dashboard; everything else stays in Launcher." />
       </div>
     </div>
   </section>;

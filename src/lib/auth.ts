@@ -3,7 +3,9 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { passkey } from "@better-auth/passkey";
 import { prisma } from "@/lib/prisma";
 
-const baseURL = process.env.PORTLESS_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+// Native development runs on 3010. Deployments must still provide their
+// browser-facing address explicitly through BETTER_AUTH_URL.
+const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3010";
 const trustedOrigins = [...new Set([baseURL, ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "").split(",").map((origin) => origin.trim()).filter(Boolean)])];
 
 export const auth = betterAuth({

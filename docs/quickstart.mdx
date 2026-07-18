@@ -6,24 +6,19 @@ description: Start Dashbored with Docker Compose and connect your first provider
 ## Requirements
 
 - Docker Engine with Compose v2
+- Bun 1.3 or newer
 - A private hostname or LAN address for Dashbored
 - A PostgreSQL volume with enough space for compact health history
 - A scoped Portainer access token for discovery
 
 ## Configure
 
-For a local evaluation, the helper creates a private configuration file and starts the full stack:
+Create a private `.env` from `.env.example`, generate unique values for every
+secret, and set the correct external address before starting Compose. Never
+reuse a server login password as an application secret.
 
 ```bash
-bun run docker:local
-```
-
-Open `http://localhost:43821`. The generated credentials are in `.env.docker.local`; it is ignored by Git and should remain private.
-
-For a LAN or production installation, create your own `.env` from `.env.example`, generate unique values for every secret, and set the correct external address before starting Compose. Never reuse a server login password as an application secret.
-
-```bash
-docker compose up -d --build
+bun run serve
 ```
 
 Open the configured dashboard URL and sign in with the bootstrap owner account. A fresh Overview starts empty on purpose: choose **Connect Portainer**, then the worker will populate Launcher after the first successful inventory sync.

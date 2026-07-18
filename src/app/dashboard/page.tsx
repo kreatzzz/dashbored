@@ -9,6 +9,7 @@ import { StatusDot } from "@/components/ui/status-dot";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PortainerOnboarding } from "@/components/portainer-onboarding";
+import { isConnectionSetupPending } from "@/lib/supported-containers";
 
 export default async function OverviewPage() {
   // The server component needs a database-relative lookback window; it does not run in a client render loop.
@@ -29,10 +30,12 @@ export default async function OverviewPage() {
       </div>
     </main>;
   }
-  const healthy = services.filter((service) => service.lastStatus === "healthy").length;
-  const degraded = services.filter((service) => service.lastStatus === "degraded").length;
-  const offline = services.filter((service) => service.lastStatus === "offline").length;
-  const pending = services.filter((service) => !service.lastCheckedAt || service.lastStatus === "unknown").length;
+  const setupServices = services.filter((service) => isConnectionSetupPending(service.configuration));
+  const monitoredServices = services.filter((service) => !isConnectionSetupPending(service.configuration));
+  const healthy = monitoredServices.filter((service) => service.lastStatus === "healthy").length;
+  const degraded = monitoredServices.filter((service) => service.lastStatus === "degraded").length;
+  const offline = monitoredServices.filter((service) => service.lastStatus === "offline").length;
+  const pending = monitoredServices.filter((service) => !service.lastCheckedAt || service.lastStatus === "unknown").length;
   const attention = degraded + offline;
   const uptimeRate = snapshots.length ? snapshots.filter((snapshot) => snapshot.status === "healthy").length / snapshots.length * 100 : null;
   const latencies = services.map((service) => service.lastLatencyMs).filter((value): value is number => value !== null).sort((a, b) => a - b);
@@ -48,12 +51,14 @@ export default async function OverviewPage() {
     buckets.set(key, item);
   }
   const chartData = [...buckets.values()].slice(-48);
-  const statusLabel = attention
+  const statusLabel = setupServices.length
+    ? `${setupServices.length} native connection${setupServices.length === 1 ? " is" : "s are"} ready to finish`
+    : attention
     ? `${attention} service${attention === 1 ? "" : "s"} need attention`
-    : pending === services.length ? "Waiting for first health check"
+    : pending === monitoredServices.length ? "Waiting for first health check"
       : pending ? `${pending} service${pending === 1 ? " is" : "s are"} still being checked`
         : "All systems operational";
-  const slowest = services.filter((service) => service.lastLatencyMs !== null).sort((a, b) => (b.lastLatencyMs ?? 0) - (a.lastLatencyMs ?? 0)).slice(0, 6);
+  const slowest = monitoredServices.filter((service) => service.lastLatencyMs !== null).sort((a, b) => (b.lastLatencyMs ?? 0) - (a.lastLatencyMs ?? 0)).slice(0, 6);
   const maxLatency = Math.max(1, ...slowest.map((service) => service.lastLatencyMs ?? 0));
   return <main>
     <PageHeader eyebrow="Home / Overview" title="Overview" description="Service health, container state, and response times." actions={<Button asChild size="sm"><Link href="/dashboard/settings"><Plus size={14} />Add service</Link></Button>} />
@@ -68,21 +73,24 @@ export default async function OverviewPage() {
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-4"><div><h2 className="text-sm font-medium">Operations trend</h2><p className="mt-0.5 text-xs text-muted-foreground">Healthy and unavailable checks across the fleet</p></div><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-[var(--ds-blue-700)]" />Live</span></div>
           <div className="px-4 pt-3">{chartData.length ? <SignalChart data={chartData} /> : <MinimalCross title="Waiting for health data" description="The worker will populate this view automatically." />}</div>
-          <div className="grid border-t border-border grid-cols-2 md:grid-cols-4 md:divide-x md:divide-border"><InsightFact label="Availability" value={uptimeRate === null ? "—" : `${uptimeRate.toFixed(1)}%`} detail={uptimeRate === null ? "Waiting for checks" : "Recorded checks"} tone="green" /><InsightFact label="Operational" value={pending === services.length ? "—" : String(healthy)} detail={pending === services.length ? `${services.length} queued` : `${services.length} tracked`} tone="blue" /><InsightFact label="Attention" value={String(attention)} detail={pending === services.length ? "No failures recorded" : `${degraded} degraded · ${offline} offline`} tone={attention ? "amber" : "green"} /><InsightFact label="Median latency" value={medianLatency === null ? "—" : `${medianLatency} ms`} detail={medianLatency === null ? "Waiting for response" : "Reachable services"} tone="violet" /></div>
+          <div className="grid border-t border-border grid-cols-2 md:grid-cols-4 md:divide-x md:divide-border"><InsightFact label="Availability" value={uptimeRate === null ? "—" : `${uptimeRate.toFixed(1)}%`} detail={uptimeRate === null ? "Waiting for checks" : "Recorded checks"} tone="green" /><InsightFact label="Operational" value={pending === monitoredServices.length ? "—" : String(healthy)} detail={pending === monitoredServices.length ? `${monitoredServices.length} queued` : `${monitoredServices.length} monitored`} tone="blue" /><InsightFact label="Setup ready" value={String(setupServices.length)} detail={setupServices.length ? "Finish native connections" : "No setup pending"} tone={setupServices.length ? "amber" : "green"} /><InsightFact label="Median latency" value={medianLatency === null ? "—" : `${medianLatency} ms`} detail={medianLatency === null ? "Waiting for response" : "Reachable services"} tone="violet" /></div>
         </Card>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(330px,.55fr)]">
           <Card className="flex flex-col overflow-hidden"><PanelHeading icon={Activity} title="Response times" description="Slowest responding services from the latest check" />{slowest.length ? <div className="grid flex-1 divide-y divide-border" style={{ gridTemplateRows: `repeat(${slowest.length}, minmax(0, 1fr))` }}>{slowest.map((service) => <div key={service.id} className="grid min-h-[54px] grid-cols-[minmax(110px,.55fr)_minmax(160px,1fr)_auto] items-center gap-4 px-5 py-2.5"><div className="flex min-w-0 items-center gap-2"><StatusDot status={service.lastStatus} /><span className="truncate text-[13px] font-medium">{service.name}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${latencyColor(service.lastLatencyMs ?? 0)}`} style={{ width: `${Math.max(3, (service.lastLatencyMs ?? 0) / maxLatency * 100)}%` }} /></div><span className="mono w-16 text-right text-xs text-muted-foreground">{service.lastLatencyMs} ms</span></div>)}</div> : <MinimalCross title="No latency samples" description="Reachable services will appear after the next check." compact />}</Card>
           <div className="grid gap-6">
-            <Card className="overflow-hidden"><PanelHeading icon={ServerCog} title="Fleet status" description="Current service distribution" /><div className="p-5"><StackedStatus healthy={healthy} degraded={degraded} offline={offline} pending={pending} total={services.length} /><div className="mt-4 grid grid-cols-4 gap-3"><StatusCount label="Healthy" value={healthy} color="var(--good)" /><StatusCount label="Pending" value={pending} color="var(--ds-gray-500)" /><StatusCount label="Degraded" value={degraded} color="var(--warn)" /><StatusCount label="Offline" value={offline} color="var(--bad)" /></div></div></Card>
+            <Card className="overflow-hidden"><PanelHeading icon={ServerCog} title="Fleet status" description="Current service distribution" /><div className="p-5"><StackedStatus healthy={healthy} degraded={degraded} offline={offline} pending={pending} total={monitoredServices.length} /><div className="mt-4 grid grid-cols-4 gap-3"><StatusCount label="Healthy" value={healthy} color="var(--good)" /><StatusCount label="Pending" value={pending} color="var(--ds-gray-500)" /><StatusCount label="Degraded" value={degraded} color="var(--warn)" /><StatusCount label="Offline" value={offline} color="var(--bad)" /></div></div></Card>
             <Card className="overflow-hidden"><PanelHeading icon={Activity} title="Recent activity" description="Latest confirmed actions" /><div>{actions.length ? actions.slice(0, 2).map((action) => <div key={action.id} className="flex items-start gap-3 border-b border-border px-5 py-3 last:border-0"><div className="mt-1"><StatusDot status={action.status === "success" ? "healthy" : "degraded"} /></div><div className="min-w-0 flex-1"><p className="truncate text-[13px] font-medium capitalize">{action.action.replaceAll("-", " ")}</p><p className="mt-1 truncate text-xs text-muted-foreground">{action.service?.name ?? "System"} · {formatRelative(action.createdAt)}</p></div></div>) : <MinimalCross title="No actions yet" description="Confirmed changes will appear here." compact />}</div></Card>
           </div>
         </div>
       </section>
 
       <section><div className="mb-4 flex items-end justify-between"><div><h2 className="text-base font-medium tracking-[-.01em]">Services</h2><p className="mt-1 text-[13px] text-muted-foreground">Applications connected to this dashboard</p></div><span className="text-xs text-muted-foreground">{services.length} total</span></div>
-        <div className="grid gap-px overflow-hidden rounded-md border border-border bg-border md:grid-cols-2 xl:grid-cols-3">{services.map((service) => <Link href={`/dashboard/services/${service.slug}`} key={service.id} className="group bg-background p-5 transition-colors duration-150 hover:bg-hover"><div className="flex items-start gap-3"><div className="grid h-9 w-9 place-items-center rounded-md border border-border bg-background"><AppIcon name={service.icon} size={16} /></div><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="truncate text-sm font-medium">{service.name}</h3><StatusDot status={service.lastStatus} /></div><p className="mt-1 truncate text-[13px] text-muted-foreground">{service.description ?? service.category.name}</p></div><ArrowRight size={14} className="mt-1 text-muted-foreground transition-colors group-hover:text-foreground" /></div><div className="mt-5 flex items-center justify-between text-xs text-muted-foreground"><span className="capitalize">{service.lastStatus}</span><span className="mono">{service.lastLatencyMs !== null ? `${service.lastLatencyMs} ms` : formatRelative(service.lastCheckedAt)}</span></div></Link>)}</div>
+        <div className={`grid gap-px overflow-hidden rounded-md border border-border bg-background ${services.length === 1 ? "grid-cols-1" : services.length === 2 ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>{services.map((service) => {
+          const setupPending = isConnectionSetupPending(service.configuration);
+          return <Link href={`/dashboard/services/${service.slug}`} key={service.id} className="group bg-card p-5 transition-[background-color,box-shadow] duration-150 hover:bg-hover hover:shadow-[var(--surface-shadow)]"><div className="flex items-start gap-3"><div className="grid h-9 w-9 place-items-center rounded-md border border-border bg-background"><AppIcon name={service.icon} size={16} /></div><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="truncate text-sm font-medium">{service.name}</h3>{setupPending ? <span className="mono rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[.08em] text-muted-foreground">Setup</span> : <StatusDot status={service.lastStatus} />}</div><p className="mt-1 truncate text-[13px] text-muted-foreground">{setupPending ? "Finish connection to activate the native dashboard" : service.description ?? service.category.name}</p></div><ArrowRight size={14} className="mt-1 text-muted-foreground transition-colors group-hover:text-foreground" /></div><div className="mt-5 flex items-center justify-between text-xs text-muted-foreground"><span className="capitalize">{setupPending ? "Setup required" : service.lastStatus}</span><span className="mono">{setupPending ? "Portainer" : service.lastLatencyMs !== null ? `${service.lastLatencyMs} ms` : formatRelative(service.lastCheckedAt)}</span></div></Link>;
+        })}</div>
       </section>
     </div>
   </main>;

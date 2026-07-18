@@ -12,9 +12,9 @@ function firstHeaderValue(value: string | null) {
 
 export function configuredDashboardOrigins() {
   return [
-    process.env.PORTLESS_URL,
     process.env.BETTER_AUTH_URL,
     ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "").split(","),
+    ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:3010"]),
   ].map((value) => value?.trim()).filter((value): value is string => Boolean(value));
 }
 

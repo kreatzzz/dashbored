@@ -11,6 +11,7 @@ import { assertPrivateServiceUrl } from "@/lib/network";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { getServiceContext } from "@/lib/services";
+import { isConnectionSetupPending } from "@/lib/supported-containers";
 
 const schema = z.object({ name: z.string().min(2).max(60), categoryId: z.string().min(1), adapterType: z.string().min(1), icon: z.string().min(1), baseUrl: z.string().url().optional().or(z.literal("")), launchUrl: z.string().url(), description: z.string().max(160).optional(), username: z.string().max(120).optional(), password: z.string().max(300).optional(), apiKey: z.string().max(1000).optional(), token: z.string().max(2000).optional() });
 
@@ -123,7 +124,7 @@ export async function createPortainerConnection(
     try {
       const discovery = await syncPortainerLaunchers(service);
       discoveryMessage = discovery.discovered
-        ? `Connected and imported ${discovery.discovered} container${discovery.discovered === 1 ? "" : "s"}.`
+        ? `Connected and imported ${discovery.discovered} container${discovery.discovered === 1 ? "" : "s"}${discovery.integrations ? `. ${discovery.integrations} native setup${discovery.integrations === 1 ? " is" : "s are"} ready in the sidebar.` : "."}`
         : "Connected. Portainer reported no containers for this environment.";
     } catch (error) {
       console.warn(JSON.stringify({ level: "warn", event: "portainer.initial_discovery_failed", message: error instanceof Error ? error.message : "Unknown error" }));
@@ -207,7 +208,8 @@ export async function updateService(formData: FormData): Promise<ServiceMutation
     const existingConfiguration = existing.configuration && typeof existing.configuration === "object" && !Array.isArray(existing.configuration)
       ? existing.configuration as Record<string, unknown>
       : {};
-    let configuration: Record<string, unknown> | undefined = parsed.data.endpointId === undefined ? undefined : { ...existingConfiguration, endpointId: parsed.data.endpointId };
+    let configuration: Record<string, unknown> = { ...existingConfiguration };
+    if (parsed.data.endpointId !== undefined) configuration.endpointId = parsed.data.endpointId;
     if (parsed.data.adapterType === "portainer") {
       const savedCredentials = existing.baseUrl ? (await getServiceContext(existing)).credentials : {};
       const apiKey = parsed.data.apiKey || savedCredentials.apiKey;
@@ -245,6 +247,9 @@ export async function updateService(formData: FormData): Promise<ServiceMutation
         if (credentialId) await tx.encryptedCredential.update({ where: { id: credentialId }, data: encrypted });
         else credentialId = (await tx.encryptedCredential.create({ data: encrypted })).id;
       }
+      if (isConnectionSetupPending(existing.configuration) && baseUrl && hasRequiredCredentials(parsed.data.adapterType, credentials, credentialId)) {
+        configuration = { ...configuration, setupState: "connected" };
+      }
       return tx.serviceInstance.update({ where: { id: parsed.data.id }, data: { name: parsed.data.name, categoryId: parsed.data.categoryId, adapterType: parsed.data.adapterType, icon: parsed.data.icon, description: parsed.data.description, baseUrl, launchUrl: parsed.data.launchUrl, credentialId, configuration: configuration as Prisma.InputJsonValue | undefined, ...(parsed.data.adapterType === "portainer" ? { lastStatus: "unknown", lastCheckedAt: null, lastLatencyMs: null, pollFailureCount: 0, nextPollAt: null } : {}) } });
     });
     await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: parsed.data.id, action: parsed.data.adapterType === "portainer" ? "portainer-updated" : "service-updated", status: "success" } });
@@ -261,6 +266,12 @@ export async function updateService(formData: FormData): Promise<ServiceMutation
   } catch (error) {
     return { status: "error", error: serviceMutationError(error) };
   }
+}
+
+function hasRequiredCredentials(adapterType: string, credentials: Record<string, string | undefined>, credentialId: string | null) {
+  if (credentialId) return true;
+  if (["adguard", "beszel"].includes(adapterType)) return Boolean(credentials.username && credentials.password);
+  return Boolean(credentials.apiKey || credentials.token);
 }
 
 function serviceMutationError(error: unknown) {

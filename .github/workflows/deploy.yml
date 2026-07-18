@@ -1,0 +1,41 @@
+name: Deploy Dashbored
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashbored-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # This remains inert until the repository owner explicitly opts in.
+    if: ${{ vars.DASHBORED_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      DASHBORED_HOST: ${{ secrets.DASHBORED_HOST }}
+      DASHBORED_SSH_USER: ${{ secrets.DASHBORED_SSH_USER }}
+      DASHBORED_SSH_PRIVATE_KEY: ${{ secrets.DASHBORED_SSH_PRIVATE_KEY }}
+      DASHBORED_KNOWN_HOSTS: ${{ secrets.DASHBORED_KNOWN_HOSTS }}
+      DASHBORED_DEPLOY_PATH: ${{ secrets.DASHBORED_DEPLOY_PATH }}
+    steps:
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$DASHBORED_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$DASHBORED_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+      - name: Build and restart the private stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DASHBORED_SSH_USER@$DASHBORED_HOST" \
+            "cd \"$DASHBORED_DEPLOY_PATH\" && git pull --ff-only origin main && docker compose up -d --build && for attempt in \$(seq 1 60); do if curl -fsS http://127.0.0.1:3010/api/health; then docker compose ps; exit 0; fi; sleep 2; done; echo 'Dashbored did not become ready' >&2; exit 1"

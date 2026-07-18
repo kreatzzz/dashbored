@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { StatusDot } from "@/components/ui/status-dot";
 
-type Category = { id: string; name: string; slug: string; icon: string; services: Array<{ id: string; name: string; slug: string; icon: string; lastStatus: string }> };
+type Category = { id: string; name: string; slug: string; icon: string; services: Array<{ id: string; name: string; slug: string; icon: string; lastStatus: string; setupPending?: boolean }> };
 
 export function Sidebar({ categories, email }: { categories: Category[]; email: string }) {
   const path = usePathname(); const router = useRouter(); const [open, setOpen] = useState(false); const [searchOpen, setSearchOpen] = useState(false);
@@ -34,7 +34,7 @@ export function Sidebar({ categories, email }: { categories: Category[]; email: 
     <nav className="space-y-5" aria-label="Service navigation">
       {populatedCategories.map((category) => <section key={category.id}>
         <p className="mb-1.5 px-2.5 text-xs font-medium leading-none text-muted-foreground">{category.name}</p>
-        <div>{category.services.map((service) => <Link key={service.id} href={`/dashboard/services/${service.slug}`} onClick={() => setOpen(false)} className={cn(itemClass, path === `/dashboard/services/${service.slug}` && "bg-hover font-medium text-foreground")}><AppIcon name={service.icon} size={14} className="text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{service.name}</span><StatusDot status={service.lastStatus} /></Link>)}</div>
+        <div>{category.services.map((service) => <Link key={service.id} href={`/dashboard/services/${service.slug}`} onClick={() => setOpen(false)} className={cn(itemClass, path === `/dashboard/services/${service.slug}` && "bg-hover font-medium text-foreground")}><AppIcon name={service.icon} size={14} className="text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{service.name}</span>{service.setupPending ? <span className="mono rounded bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[.08em] text-muted-foreground">Setup</span> : <StatusDot status={service.lastStatus} />}</Link>)}</div>
       </section>)}
     </nav>
   </>;
@@ -66,7 +66,7 @@ function ServiceSearchDialog({ open, onOpenChange, categories }: { open: boolean
     { name: "Overview", description: "Live service health", href: "/dashboard", icon: "dashboard" },
     { name: "Launcher", description: "Private application catalog", href: "/dashboard/launcher", icon: "container" },
     { name: "Settings", description: "Connections and security", href: "/dashboard/settings", icon: "settings" },
-    ...categories.flatMap((category) => category.services.map((service) => ({ name: service.name, description: category.name, href: `/dashboard/services/${service.slug}`, icon: service.icon, status: service.lastStatus }))),
+    ...categories.flatMap((category) => category.services.map((service) => ({ name: service.name, description: service.setupPending ? `${category.name} · finish setup` : category.name, href: `/dashboard/services/${service.slug}`, icon: service.icon, status: service.setupPending ? undefined : service.lastStatus }))),
   ], [categories]);
   const matches = useMemo(() => {
     const term = query.trim().toLowerCase();

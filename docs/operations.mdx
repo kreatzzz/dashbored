@@ -27,7 +27,7 @@ A healthy web process does not guarantee that scheduled discovery and polling ar
 The dashboard exposes a minimal unauthenticated readiness endpoint. It reports `200` only when the web process can also query PostgreSQL; it never returns application configuration, service health, or credentials.
 
 ```bash
-curl -fsS http://127.0.0.1:43821/api/health
+curl -fsS http://127.0.0.1:3010/api/health
 # {"status":"ok"}
 ```
 
@@ -59,8 +59,6 @@ bun run backup
 
 It creates a gzipped PostgreSQL dump and SHA-256 checksum in `backups/` with restrictive file permissions. It deliberately does not copy `.env`; preserve that file using your established encrypted backup system because it contains the credential master key.
 
-For a stack started with `bun run docker:local`, use `bun run backup:local` instead.
-
 ## Restore outline
 
 1. Stop the stack.
@@ -75,7 +73,7 @@ The restore helper is intentionally explicit because it drops and recreates the 
 bun run restore -- /absolute/path/to/dashbored.sql.gz --confirm=RESTORE
 ```
 
-For a local helper-created stack, use `bun run restore:local -- /absolute/path/to/dashbored.sql.gz --confirm=RESTORE`. The script verifies a neighboring `.sha256` file when present, stops the web and worker services, restores the database, then starts the stack again.
+The script verifies a neighboring `.sha256` file when present, stops the web and worker services, restores the database, then starts the stack again.
 
 ## Upgrade
 
@@ -89,6 +87,24 @@ docker compose ps
 ```
 
 Do not delete volumes during a normal upgrade. Inspect `migrate` logs if `dashboard` or `worker` does not start; they depend on successful migrations.
+
+## Deploy on every push
+
+The included GitHub Actions workflow can rebuild the private server from source
+after each push to `main`. It is deliberately disabled until the repository
+owner adds the secrets below and creates the repository variable
+`DASHBORED_DEPLOY_ENABLED` with the value `true`.
+
+- `DASHBORED_HOST`: private host name or address of the deployment server.
+- `DASHBORED_SSH_USER`: unprivileged SSH account that can run Docker Compose.
+- `DASHBORED_SSH_PRIVATE_KEY`: a dedicated deployment key, not a login password.
+- `DASHBORED_KNOWN_HOSTS`: a verified `known_hosts` entry for the server.
+- `DASHBORED_DEPLOY_PATH`: absolute path to this Git repository on the server.
+
+The server checkout must track `main`, have its private `.env` already present,
+and set `DASHBOARD_PORT=3010`. Each enabled push runs `git pull --ff-only`,
+`docker compose up -d --build`, and the local readiness check. No address,
+password, token, or environment file is stored in the repository.
 
 For published-image deployments, follow [Releases and upgrades](/docs/releases).
 

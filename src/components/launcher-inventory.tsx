@@ -60,18 +60,22 @@ function RefreshInventoryButton({ providers }: { providers: Provider[] }) {
     try {
       const results = await Promise.allSettled(providers.map(async (provider) => {
         const response = await fetch("/api/launchers/discover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ providerId: provider.id }) });
-        const result = await response.json() as { discovered?: number; error?: string };
+        const result = await response.json() as { discovered?: number; integrations?: number; error?: string };
         if (!response.ok) throw new Error(result.error ?? `Could not refresh ${provider.name}`);
-        return result.discovered ?? 0;
+        return { discovered: result.discovered ?? 0, integrations: result.integrations ?? 0 };
       }));
-      const successful = results.filter((result): result is PromiseFulfilledResult<number> => result.status === "fulfilled");
+      const successful = results.filter((result): result is PromiseFulfilledResult<{ discovered: number; integrations: number }> => result.status === "fulfilled");
       const failed = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
       if (!successful.length) {
         const firstError = failed[0]?.reason;
         throw firstError instanceof Error ? firstError : new Error("Inventory refresh failed");
       }
-      const discovered = successful.reduce((total, result) => total + result.value, 0);
-      toast.success(failed.length ? `Refreshed ${discovered} containers; ${failed.length} connection${failed.length === 1 ? "" : "s"} could not be refreshed.` : `Refreshed ${discovered} containers`);
+      const discovered = successful.reduce((total, result) => total + result.value.discovered, 0);
+      const integrations = successful.reduce((total, result) => total + result.value.integrations, 0);
+      const discoveryMessage = `Refreshed ${discovered} container${discovered === 1 ? "" : "s"}`;
+      const refreshMessage = failed.length ? `${discoveryMessage}; ${failed.length} connection${failed.length === 1 ? "" : "s"} could not be refreshed` : discoveryMessage;
+      const setupMessage = integrations ? ` ${integrations} native setup${integrations === 1 ? " is" : "s are"} ready in the sidebar.` : "";
+      toast.success(`${refreshMessage}.${setupMessage}`);
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Inventory refresh failed");

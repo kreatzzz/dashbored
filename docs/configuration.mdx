@@ -31,7 +31,7 @@ openssl rand -base64 24
 | --- | --- | --- |
 | `BETTER_AUTH_TRUSTED_ORIGINS` | empty | Comma-separated browser origins allowed to submit authenticated requests. Include each private hostname you use. |
 | `DASHBOARD_BIND_ADDRESS` | `127.0.0.1` | Address to publish the dashboard from Compose. Prefer loopback behind a proxy. |
-| `DASHBOARD_PORT` | `43821` | Host port mapped to the dashboard container. |
+| `DASHBOARD_PORT` | `3010` | Host port mapped to the dashboard container. |
 | `POLL_INTERVAL_MS` | `60000` | Worker sweep interval in milliseconds. Keep it at or above one minute for modest servers. |
 | `NEXT_PUBLIC_DOCS_URL` | Dashbored Mintlify URL | Destination for in-app documentation links. |
 
@@ -46,7 +46,7 @@ CREDENTIAL_MASTER_KEY=base64-encoded-32-byte-key
 BOOTSTRAP_EMAIL=owner@example.net
 BOOTSTRAP_PASSWORD=use-a-unique-long-password
 DASHBOARD_BIND_ADDRESS=127.0.0.1
-DASHBOARD_PORT=43821
+DASHBOARD_PORT=3010
 POLL_INTERVAL_MS=60000
 ```
 

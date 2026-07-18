@@ -25,7 +25,7 @@ services:
     environment: &app_env
       DATABASE_URL: postgresql://dashbored:${POSTGRES_PASSWORD}@postgres:5432/dashbored
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:43821}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3010}
       BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-}
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
       BOOTSTRAP_EMAIL: ${BOOTSTRAP_EMAIL}
@@ -44,7 +44,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
     ports:
-      - "${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT:-43821}:3000"
+      - "${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT:-3010}:3000"
     depends_on:
       migrate: { condition: service_completed_successfully }
     healthcheck:

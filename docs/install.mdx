@@ -14,29 +14,6 @@ Dashbored's Compose project runs four services:
 
 Only `dashboard` has a host port. Keep the other three private to the Compose networks.
 
-## Local Docker setup
-
-This is the fastest option for trying Dashbored on the same machine:
-
-```bash
-git clone https://github.com/kreatzzz/dashbored.git
-cd dashbored
-bun install
-bun run docker:local
-```
-
-The helper creates `.env.docker.local` with generated passwords and binds the dashboard to `127.0.0.1:43821`. View the generated owner credentials in that file; do not commit or share it.
-
-Useful local commands:
-
-```bash
-bun run docker:local:status
-bun run docker:local:logs
-bun run docker:local:down
-```
-
-`down` stops containers but preserves the PostgreSQL volume. It does not erase dashboard data.
-
 ## Private LAN setup
 
 1. Clone the repository on the server that will run Dashbored.
@@ -52,7 +29,7 @@ chmod 600 .env
 6. Build and start:
 
 ```bash
-docker compose up -d --build
+bun run serve
 ```
 
 7. Confirm the stack is running:
@@ -79,10 +56,12 @@ Use native development when changing the application:
 ```bash
 cp .env.example .env
 bun install
-docker compose up -d postgres
+# Create a local PostgreSQL role/database, then put its URL in .env.
+createuser -P dashbored
+createdb -O dashbored dashbored
 bun run db:migrate
 bun run db:seed
-bun run dev:portless
+bun run dev
 ```
 
 Run the worker separately:
@@ -91,6 +70,9 @@ Run the worker separately:
 bun run worker
 ```
 
-Portless gives the development server an HTTPS `.localhost` URL and avoids choosing a fixed development port. It is development-only: `.localhost` resolves to the device opening the browser and is not a LAN hostname.
+This is entirely native: `bun run dev` starts Next.js with Fast Refresh at
+`http://localhost:3010`. Saving a file updates the page without Docker or a
+rebuild. Use the local PostgreSQL URL in `.env`; do not point development at a
+production database.
 
 See [Configuration](/docs/configuration) before using a non-local environment.

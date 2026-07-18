@@ -13,7 +13,7 @@ Before starting the stack, put the browser-facing origin in your private environ
 
 ```dotenv
 DASHBOARD_BIND_ADDRESS=127.0.0.1
-DASHBOARD_PORT=43821
+DASHBOARD_PORT=3010
 BETTER_AUTH_URL=https://dashbored.home.arpa
 BETTER_AUTH_TRUSTED_ORIGINS=https://dashbored.home.arpa
 ```
@@ -27,7 +27,7 @@ Caddy is the smallest path for a private TLS deployment. Add this to the host's 
 ```caddy
 dashbored.home.arpa {
   tls internal
-  reverse_proxy 127.0.0.1:43821 {
+  reverse_proxy 127.0.0.1:3010 {
     health_uri /api/health
   }
 }
@@ -48,7 +48,7 @@ server {
   ssl_certificate_key /etc/nginx/certs/dashbored.home.arpa.key;
 
   location / {
-    proxy_pass http://127.0.0.1:43821;
+    proxy_pass http://127.0.0.1:3010;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -64,7 +64,7 @@ Restrict TCP/443 to your LAN or private overlay at the firewall. Dashbored is in
 For private remote access, run Tailscale on the Dashbored host and point Serve at the loopback-bound dashboard:
 
 ```bash
-tailscale serve --https=443 http://127.0.0.1:43821
+tailscale serve --https=443 http://127.0.0.1:3010
 ```
 
 Set `BETTER_AUTH_URL` and `BETTER_AUTH_TRUSTED_ORIGINS` to the exact `https://<machine>.<tailnet>.ts.net` URL that Tailscale presents. Use that same URL in the browser; it provides a stable HTTPS origin for passkeys without opening the service to the public internet.
@@ -74,7 +74,7 @@ Set `BETTER_AUTH_URL` and `BETTER_AUTH_TRUSTED_ORIGINS` to the exact `https://<m
 From the Dashbored host:
 
 ```bash
-curl -fsS http://127.0.0.1:43821/api/health
+curl -fsS http://127.0.0.1:3010/api/health
 ```
 
 From a browser device, open the HTTPS hostname, sign in, and perform one non-destructive action such as opening the Launcher. If a protected action returns **Origin rejected**, compare the complete browser origin to `BETTER_AUTH_URL` and `BETTER_AUTH_TRUSTED_ORIGINS`, then restart the stack.

@@ -4,6 +4,7 @@ import { syncPortainerLaunchers } from "./lib/launchers";
 import { backoffDelayMs, boundedNumber, mapWithConcurrency } from "./lib/polling";
 import { prisma } from "./lib/prisma";
 import { getServiceContext } from "./lib/services";
+import { isConnectionSetupPending } from "./lib/supported-containers";
 
 const interval = Math.max(15_000, Number(process.env.POLL_INTERVAL_MS ?? 60_000));
 const maxConcurrent = boundedNumber(Number(process.env.POLL_CONCURRENCY ?? 3), 1, 8);
@@ -70,10 +71,12 @@ export async function pollOnce(now = new Date()): Promise<PollReport> {
   const lock = await prisma.$queryRaw<Array<{ locked: boolean }>>`SELECT pg_try_advisory_lock(728041) AS locked`;
   if (!lock[0]?.locked) return { locked: false, checked: 0, skipped: 0, discovered: 0, failures: 0 };
   try {
-    const allEnabled = await prisma.serviceInstance.count({ where: { enabled: true, baseUrl: { not: null } } });
-    const services = await prisma.serviceInstance.findMany({
-      where: { enabled: true, baseUrl: { not: null }, OR: [{ nextPollAt: null }, { nextPollAt: { lte: now } }] },
+    const configured = await prisma.serviceInstance.findMany({
+      where: { enabled: true, baseUrl: { not: null } },
     });
+    const activeServices = configured.filter((service) => !isConnectionSetupPending(service.configuration));
+    const services = activeServices.filter((service) => !service.nextPollAt || service.nextPollAt <= now);
+    const allEnabled = activeServices.length;
     const results = await mapWithConcurrency(services, maxConcurrent, (service) => pollService(service, now));
     await pruneOldRecords(now);
     return {

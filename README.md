@@ -13,35 +13,40 @@ Dashbored is a self-hosted dashboard for monitoring and operating the services y
 
 Beszel, AdGuard Home, Uptime Kuma, Jellyfin, Immich, and Servarr-compatible adapters are experimental while their contracts mature. See [SUPPORT.md](SUPPORT.md) for the full compatibility promise and exclusions.
 
-## Quick start with Docker
+## Run on a server
 
-Start PostgreSQL, migrations, the dashboard, and the polling worker together:
-
-```bash
-bun run docker:local
-```
-
-Open `http://localhost:43821`. On first run, the helper creates an ignored, permission-restricted `.env.docker.local` containing randomly generated local credentials and keys. PostgreSQL is not published to the host, and the dashboard binds to `127.0.0.1`.
-
-Useful commands:
+Create a private `.env` from `.env.example`, replace every placeholder, then
+run this one command:
 
 ```bash
-bun run docker:local:status
-bun run docker:local:logs
-bun run docker:local:down
+bun run serve
 ```
 
-Stopping the stack preserves the PostgreSQL volume. `docker:local:down` does not delete dashboard data.
+It builds and starts the dashboard, migration job, worker, and PostgreSQL with
+Docker Compose. The dashboard defaults to `http://localhost:3010`; PostgreSQL
+is not published to the host. Use `bun run status`, `bun run logs`, and
+`bun run stop` to inspect, follow, or stop the stack.
 
 ## Native development
 
-1. Copy `.env.example` to `.env` and replace every placeholder with a unique value.
-2. Start PostgreSQL with `docker compose up -d postgres`.
-3. Run `bun run db:migrate`, then `bun run db:seed`.
-4. Start the app with `bun run dev:portless`.
-5. Start the polling worker in another terminal with `bun run worker`.
+Local development does not use Docker or Portless. Install PostgreSQL 17 on
+your computer, create a `dashbored` database and role, then configure the local
+connection in `.env`.
 
-Portless assigns a free internal port; no application port needs to be chosen locally.
+```bash
+createuser -P dashbored
+createdb -O dashbored dashbored
+bun install
+cp .env.example .env
+bun run db:migrate
+bun run db:seed
+bun run dev
+```
+
+Open `http://localhost:3010`. `bun run dev` is Next.js development mode: saved
+changes use Fast Refresh immediately, with no image rebuild or container layer
+involved. Run `bun run worker` in another terminal only when changing polling
+or provider behavior.
 
 ## Connect services
 

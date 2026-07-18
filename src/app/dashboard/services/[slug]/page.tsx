@@ -11,6 +11,8 @@ import { ServiceActions } from "@/components/service-actions";
 import { ServiceDashboard } from "@/components/service-dashboard";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
+import { DetectedServiceSetup } from "@/components/detected-service-setup";
+import { getDiscoveredServiceSource, isConnectionSetupPending } from "@/lib/supported-containers";
 
 export default async function ServicePage({ params }: { params: Promise<{ slug: string }> }) {
   const service = await prisma.serviceInstance.findUnique({
@@ -19,9 +21,14 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
   });
   if (!service) notFound();
 
+  const setupPending = isConnectionSetupPending(service.configuration);
+  const source = getDiscoveredServiceSource(service.configuration);
+  const categories = setupPending
+    ? await prisma.serviceCategory.findMany({ orderBy: { sortOrder: "asc" }, select: { id: true, name: true } })
+    : [];
   const adapter = getAdapter(service.adapterType);
   const credentialConfigured = Boolean(service.credentialId);
-  const shouldLoadNativeData = Boolean(service.baseUrl) && service.lastStatus !== "offline" && service.adapterType !== "generic" && (!requiresCredential(service.adapterType) || credentialConfigured);
+  const shouldLoadNativeData = !setupPending && Boolean(service.baseUrl) && service.lastStatus !== "offline" && service.adapterType !== "generic" && (!requiresCredential(service.adapterType) || credentialConfigured);
   let summary: SummaryResult | null = null;
   let error = "";
   let version: string | undefined;
@@ -39,19 +46,22 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
   }
   const offline = service.lastStatus === "offline";
   const lastMessage = service.healthSnapshots[0]?.message;
+  const canOpenDetectedApp = Boolean(source?.inferredLaunchUrl);
 
   return <main>
-    <PageHeader eyebrow={`${service.category.name} / ${service.adapterType}`} title={service.name} description={service.description ?? "Private service endpoint"} actions={<div className="flex gap-2"><Button asChild variant="outline" size="sm"><Link href="/dashboard/settings"><Settings2 size={13} />Configure</Link></Button><Button asChild size="sm"><a href={service.launchUrl} target="_blank" rel="noreferrer">Open app<ArrowUpRight size={13} /></a></Button></div>} />
+    <PageHeader eyebrow={`${service.category.name} / ${service.adapterType}`} title={service.name} description={setupPending ? "Native dashboard detected from Portainer. Finish the private connection to activate it." : service.description ?? "Private service endpoint"} actions={<div className="flex gap-2"><Button asChild variant="outline" size="sm"><Link href="/dashboard/settings"><Settings2 size={13} />Configure</Link></Button>{(!setupPending || canOpenDetectedApp) && <Button asChild size="sm"><a href={setupPending ? source!.inferredLaunchUrl! : service.launchUrl} target="_blank" rel="noreferrer">Open app<ArrowUpRight size={13} /></a></Button>}</div>} />
     <div className="mx-auto max-w-[1400px] space-y-6 p-5 md:p-8">
-      <StatusBand service={service} version={version} message={lastMessage} />
+      {setupPending ? <DetectedServiceSetup service={service} categories={categories} /> : <>
+        <StatusBand service={service} version={version} message={lastMessage} />
 
-      {offline ? <OfflineState name={service.name} message={lastMessage} launchUrl={service.launchUrl} />
-        : error ? <UnavailableState message={error} />
-          : <ServiceDashboard slug={service.slug} summary={summary} serviceId={service.id} adapterType={service.adapterType} actions={actions} credentialConfigured={credentialConfigured} />}
+        {offline ? <OfflineState name={service.name} message={lastMessage} launchUrl={service.launchUrl} />
+          : error ? <UnavailableState message={error} />
+            : <ServiceDashboard slug={service.slug} summary={summary} serviceId={service.id} adapterType={service.adapterType} actions={actions} credentialConfigured={credentialConfigured} />}
 
-      {actions.length > 0 && service.adapterType !== "portainer" && <section className="flex flex-col justify-between gap-4 rounded-lg bg-card p-5 shadow-[var(--surface-shadow)] sm:flex-row sm:items-center"><div><h2 className="text-sm font-medium">Operational actions</h2><p className="mt-1 max-w-[65ch] text-pretty text-[13px] leading-5 text-muted-foreground">Every mutation requires confirmation and is written to the audit log.</p></div><ServiceActions serviceId={service.id} actions={actions} /></section>}
+        {actions.length > 0 && service.adapterType !== "portainer" && <section className="flex flex-col justify-between gap-4 rounded-lg bg-card p-5 shadow-[var(--surface-shadow)] sm:flex-row sm:items-center"><div><h2 className="text-sm font-medium">Operational actions</h2><p className="mt-1 max-w-[65ch] text-pretty text-[13px] leading-5 text-muted-foreground">Every mutation requires confirmation and is written to the audit log.</p></div><ServiceActions serviceId={service.id} actions={actions} /></section>}
 
-      <RecentChecks snapshots={service.healthSnapshots} />
+        <RecentChecks snapshots={service.healthSnapshots} />
+      </>}
     </div>
   </main>;
 }
