@@ -20,7 +20,7 @@ services:
     restart: "no"
     command: ["sh", "-c", "bun run db:deploy && bun run db:seed"]
     environment: &app_env
-      DATABASE_URL: postgresql://dashbored:${POSTGRES_PASSWORD}@postgres:5432/dashbored
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:43821}
       BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-}

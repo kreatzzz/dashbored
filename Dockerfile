@@ -25,4 +25,5 @@ COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/next.config.ts ./next.config.ts
 COPY --from=build /app/tsconfig.json ./tsconfig.json
 EXPOSE 3000
+ENTRYPOINT ["sh", "/app/scripts/docker-entrypoint.sh"]
 CMD ["bun", ".next/standalone/server.js"]
