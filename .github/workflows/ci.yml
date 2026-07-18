@@ -12,6 +12,10 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Prisma validates the datasource during client generation. No database
+      # connection is made by this job.
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/dashbored_ci
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
