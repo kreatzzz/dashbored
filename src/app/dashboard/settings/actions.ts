@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdapter } from "@/lib/adapters";
+import { listPortainerEnvironments, type PortainerEnvironment } from "@/lib/adapters/portainer";
 import { encryptCredential } from "@/lib/crypto";
 import { syncPortainerLaunchers } from "@/lib/launchers";
 import { assertPrivateServiceUrl } from "@/lib/network";
@@ -15,7 +16,7 @@ const portainerConnectionSchema = z.object({
   baseUrl: z.string().url().max(2048),
   launchUrl: z.string().url().max(2048).optional().or(z.literal("")),
   apiKey: z.string().min(1).max(1000),
-  endpointId: z.coerce.number().int().min(1).max(1_000_000).default(1),
+  endpointId: z.preprocess((value) => value === "" || value === null ? undefined : value, z.coerce.number().int().min(1).max(1_000_000).optional()),
   replaceUnconfigured: z.literal("true").optional(),
 });
 
@@ -37,23 +38,35 @@ export async function createPortainerConnection(
   void _previousState;
   const session = await requireSession();
   const parsed = portainerConnectionSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { status: "error", error: "Enter a valid private Portainer URL, API key, and environment ID." };
+  if (!parsed.success) return { status: "error", error: "Enter a valid private Portainer URL and access token." };
 
   try {
     const launchUrl = parsed.data.launchUrl || parsed.data.baseUrl;
     await Promise.all([assertPrivateServiceUrl(parsed.data.baseUrl), assertPrivateServiceUrl(launchUrl)]);
-    // Test the exact environment before saving credentials. A successful
-    // `/api/endpoints` response alone is not enough: the token also needs to
-    // be able to read the requested container environment.
+    const connectionContext = {
+      id: "connection-check",
+      name: "Portainer",
+      baseUrl: parsed.data.baseUrl,
+      launchUrl,
+      credentials: { apiKey: parsed.data.apiKey },
+      configuration: {},
+    };
+    let environments: PortainerEnvironment[];
     try {
-      await getAdapter("portainer").getSummary({
-        id: "connection-check",
-        name: "Portainer",
-        baseUrl: parsed.data.baseUrl,
-        launchUrl,
-        credentials: { apiKey: parsed.data.apiKey },
-        configuration: { endpointId: parsed.data.endpointId },
-      });
+      environments = await listPortainerEnvironments(connectionContext);
+    } catch (error) {
+      return { status: "error", error: portainerConnectionError(error) };
+    }
+    if (!environments.length) return { status: "error", error: "Portainer accepted the token but did not expose any environments. Grant the account access to one environment, then try again." };
+    const environment = parsed.data.endpointId === undefined
+      ? environments[0]
+      : environments.find((candidate) => candidate.id === parsed.data.endpointId);
+    if (!environment) return { status: "error", error: missingEnvironmentMessage(environments) };
+    // Test the exact environment before saving credentials. Seeing an
+    // environment alone is not enough: the token also needs container-read
+    // permission for the environment Dashbored will manage.
+    try {
+      await getAdapter("portainer").getSummary({ ...connectionContext, configuration: { endpointId: environment.id } });
     } catch (error) {
       return { status: "error", error: portainerConnectionError(error) };
     }
@@ -78,7 +91,7 @@ export async function createPortainerConnection(
             baseUrl: parsed.data.baseUrl,
             launchUrl,
             credentialId: credential.id,
-            configuration: { endpointId: parsed.data.endpointId },
+            configuration: { endpointId: environment.id, endpointName: environment.name },
             lastStatus: "unknown",
             lastCheckedAt: null,
             lastLatencyMs: null,
@@ -98,7 +111,7 @@ export async function createPortainerConnection(
           baseUrl: parsed.data.baseUrl,
           launchUrl,
           credentialId: credential.id,
-          configuration: { endpointId: parsed.data.endpointId },
+          configuration: { endpointId: environment.id, endpointName: environment.name },
         },
       });
     });
@@ -125,6 +138,12 @@ function portainerConnectionError(error: unknown) {
   if (/not found|404/i.test(message)) return "Dashbored could not find that Portainer environment. Confirm the Portainer URL and environment ID.";
   if (/abort|timeout|timed out/i.test(message)) return "Dashbored could not reach Portainer before the request timed out. Check the private network path and URL.";
   return "Dashbored could not validate that Portainer connection. Check the private URL, token, and environment ID.";
+}
+
+function missingEnvironmentMessage(environments: PortainerEnvironment[]) {
+  const choices = environments.slice(0, 3).map((environment) => `${environment.name} (${environment.id})`).join(", ");
+  const suffix = environments.length > 3 ? ", …" : "";
+  return `That environment ID is not available to this token. Available: ${choices}${suffix}.`;
 }
 
 export async function createService(formData: FormData) {

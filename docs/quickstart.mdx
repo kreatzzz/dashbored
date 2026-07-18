@@ -33,8 +33,8 @@ Open the configured dashboard URL and sign in with the bootstrap owner account. 
 1. Run `docker compose ps` and wait for `postgres`, `dashboard`, and `worker` to show healthy or running.
 2. Sign in using `BOOTSTRAP_EMAIL` and `BOOTSTRAP_PASSWORD` from your environment file.
 3. On **Overview**, choose **Connect Portainer**.
-4. Enter a private, container-reachable Portainer URL, a scoped access token, and the environment ID (normally `1`).
-5. Wait one polling interval (60 seconds by default), then open **Launcher**.
+4. Enter a private, container-reachable Portainer URL and a scoped access token. Dashbored automatically selects the first environment visible to that token; set an ID only when you need a different environment.
+5. Open **Launcher** as soon as the connection is saved. The first inventory import runs immediately; the worker keeps it current every five minutes by default.
 
 Dashbored does not seed placeholder service cards or example URLs. Your first cards come from real Portainer inventory. Add Generic Launcher entries later only for applications you want to open directly.
 

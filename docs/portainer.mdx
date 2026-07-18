@@ -26,15 +26,16 @@ To allow actions, the Portainer account also needs permission to start, stop, an
 1. In Dashbored, open **Settings**.
 2. From a fresh install, use **Overview → Connect Portainer**. To add another environment later, use **Settings → Connect Portainer**.
 3. Set **Portainer URL** to the API origin, for example `https://portainer.home.arpa`.
-4. Paste the access token and choose the environment ID (normally `1`).
-5. Optionally set a separate browser-facing URL when the browser and container use different private names.
-6. Save, wait for the next worker sweep, then check the Portainer page and [Launcher](/docs/launcher).
+4. Paste the access token. Dashbored selects the first environment the token can access.
+5. If you manage multiple environments, open **Advanced connection settings** and enter the exact environment ID instead.
+6. Optionally set a separate browser-facing URL when the browser and container use different private names.
+7. Save, then check the Portainer page and [Launcher](/docs/launcher). Dashbored imports the first inventory immediately and refreshes it on the worker schedule.
 
 Do not append API paths such as `/api` to the base URL unless Portainer is served from an intentional subpath.
 
 ## Environment selection
 
-Portainer can manage multiple environments. Dashbored uses the environment ID entered with the connection (default `1`). If the connection succeeds but shows no expected containers, confirm that ID in Portainer and verify the token can see the intended environment.
+Portainer can manage multiple environments. Leaving the field blank uses the first environment visible to the token, which is the right default for a single-host homelab. If you enter an ID that the token cannot access, Dashbored shows the first available environment names and IDs instead of saving a broken connection. If the connection succeeds but shows no expected containers, edit the connection and select the intended environment.
 
 ## Actions
 

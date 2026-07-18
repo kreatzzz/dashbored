@@ -1,6 +1,6 @@
 import { safeFetch } from "@/lib/network";
 import { joinUrl, responseMessage } from "./helpers";
-import type { LauncherCandidate, ServiceAdapter, ServiceStatus } from "./types";
+import type { AdapterContext, LauncherCandidate, ServiceAdapter, ServiceStatus } from "./types";
 
 function headers(credentials: Record<string, string>): Record<string, string> {
   return credentials.apiKey ? { "X-API-Key": credentials.apiKey } : {};
@@ -29,6 +29,18 @@ type DockerInfo = {
   Driver?: unknown;
 };
 
+type PortainerEndpoint = {
+  Id?: unknown;
+  Name?: unknown;
+  Type?: unknown;
+};
+
+export type PortainerEnvironment = {
+  id: number;
+  name: string;
+  type?: string;
+};
+
 type PublishedPort = { privatePort?: number; publicPort?: number; protocol?: string; bindAddress?: string };
 
 function numberPort(value: unknown): number | undefined {
@@ -39,6 +51,27 @@ function numberPort(value: unknown): number | undefined {
 function numberValue(value: unknown): number | undefined {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+/**
+ * Return the environments visible to a token. This is used only while a
+ * connection is being created; discovery itself remains a single inventory
+ * request on the worker's quieter cadence.
+ */
+export async function listPortainerEnvironments(context: AdapterContext): Promise<PortainerEnvironment[]> {
+  const response = await safeFetch(joinUrl(context, "/api/endpoints"), { headers: headers(context.credentials) });
+  if (!response.ok) throw new Error(await responseMessage(response));
+  const payload = await response.json();
+  if (!Array.isArray(payload)) throw new Error("Portainer returned an incompatible environment list");
+  return payload.flatMap((endpoint): PortainerEnvironment[] => {
+    if (!endpoint || typeof endpoint !== "object") return [];
+    const record = endpoint as PortainerEndpoint;
+    const id = numberValue(record.Id);
+    if (!id || !Number.isInteger(id)) return [];
+    const name = typeof record.Name === "string" && record.Name.trim() ? record.Name.trim() : `Environment ${id}`;
+    const type = typeof record.Type === "string" && record.Type.trim() ? record.Type.trim() : undefined;
+    return [{ id, name, type }];
+  });
 }
 
 function publishedPorts(container: PortainerContainer): PublishedPort[] {
@@ -155,11 +188,12 @@ export const portainerAdapter: ServiceAdapter = {
   async getHealth(context) {
     const started = performance.now();
     try {
-      const response = await safeFetch(joinUrl(context, "/api/endpoints"), { headers: headers(context.credentials) });
-      const endpoints = response.ok ? await response.json() as Array<Record<string, unknown>> : [];
-      return { status: response.ok ? "healthy" : "degraded", latencyMs: Math.round(performance.now() - started), message: await responseMessage(response), metrics: { environments: endpoints.length } };
+      const endpoints = await listPortainerEnvironments(context);
+      return { status: "healthy", latencyMs: Math.round(performance.now() - started), message: "Connected", metrics: { environments: endpoints.length } };
     } catch (error) {
-      return { status: "offline", latencyMs: Math.round(performance.now() - started), message: error instanceof Error ? error.message : "Connection failed" };
+      const message = error instanceof Error ? error.message : "Connection failed";
+      const status = /authentication|401|403|not found|404/i.test(message) ? "degraded" : "offline";
+      return { status, latencyMs: Math.round(performance.now() - started), message };
     }
   },
   async getSummary(context) {

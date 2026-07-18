@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { safeFetch } from "@/lib/network";
-import { inferContainerLaunchUrl, portainerAdapter, toLauncherCandidate } from "./portainer";
+import { inferContainerLaunchUrl, listPortainerEnvironments, portainerAdapter, toLauncherCandidate } from "./portainer";
 import type { AdapterContext } from "./types";
 
 vi.mock("@/lib/network", () => ({ safeFetch: vi.fn() }));
@@ -51,6 +51,29 @@ describe("Portainer launcher discovery", () => {
       Ports: [{ PrivatePort: 8096, PublicPort: 8096, Type: "tcp", IP: "0.0.0.0" }],
     }, baseUrl);
     expect(candidate).toMatchObject({ containerId: "abcdef0123456789", name: "jellyfin", status: "offline", inferredLaunchUrl: "http://server.home.arpa:8096/" });
+  });
+});
+
+describe("Portainer environment discovery", () => {
+  it("returns only valid environments visible to the scoped token", async () => {
+    mockedFetch.mockResolvedValueOnce(json([
+      { Id: 1, Name: "primary", Type: "docker" },
+      { Id: "2", Name: "lab", Type: "edge" },
+      { Id: 0, Name: "invalid" },
+      { Id: "not-a-number", Name: "invalid" },
+      { Name: "missing-id" },
+    ]));
+
+    await expect(listPortainerEnvironments(context)).resolves.toEqual([
+      { id: 1, name: "primary", type: "docker" },
+      { id: 2, name: "lab", type: "edge" },
+    ]);
+    expect(mockedFetch).toHaveBeenCalledWith("https://192.168.1.20:9443/api/endpoints", { headers: { "X-API-Key": "test-token" } });
+  });
+
+  it("rejects a non-list response rather than guessing an environment", async () => {
+    mockedFetch.mockResolvedValueOnce(json({ Id: 1, Name: "primary" }));
+    await expect(listPortainerEnvironments(context)).rejects.toThrow("incompatible environment list");
   });
 });
 
