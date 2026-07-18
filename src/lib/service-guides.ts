@@ -106,11 +106,11 @@ export const serviceGuides: Record<string, ServiceGuide> = {
 
 export function getServiceGuide(slug: string): ServiceGuide {
   return serviceGuides[slug] ?? {
-    intro: "Use the generic launcher to monitor a private HTTP endpoint and open the upstream application.",
+    intro: "Use the generic launcher to keep a trusted application link in Dashbored without inventing a native dashboard or health signal.",
     mode: "launcher",
-    fields: [{ label: "Adapter", value: "Generic launcher" }, { label: "URL", value: "Private LAN or Tailscale origin" }, { label: "Credentials", value: "Not used in launcher mode" }],
-    steps: ["Make the application reachable from the dashboard host.", "Enter its Launch URL and API base URL in Settings.", "Keep Generic launcher selected.", "Start the worker and wait for the next health sweep."],
-    data: ["HTTP reachability", "Response latency", "External application launch"],
+    fields: [{ label: "Mode", value: "Generic launcher" }, { label: "Browser URL", value: "Private LAN or Tailscale origin" }, { label: "Credentials", value: "Not used in launcher mode" }],
+    steps: ["Choose Add launcher in Settings.", "Enter the browser-facing private URL.", "Save the link and open it from Launcher or this service page.", "Use Portainer inventory or a dedicated monitoring tool when you need health information."],
+    data: ["External application launch", "Optional Portainer container state", "No invented application metrics"],
     docs: { label: "Open application", href: "#" },
   };
 }
