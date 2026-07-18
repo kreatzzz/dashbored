@@ -129,7 +129,10 @@ export async function deleteService(formData: FormData) {
   revalidateDashboardPaths();
 }
 
-const updateSchema = schema.extend({ id: z.string().min(1) });
+const updateSchema = schema.extend({
+  id: z.string().min(1),
+  endpointId: z.preprocess((value) => value === "" || value === null ? undefined : value, z.coerce.number().int().min(1).max(1_000_000).optional()),
+});
 
 export async function updateService(formData: FormData) {
   const session = await requireSession();
@@ -139,6 +142,10 @@ export async function updateService(formData: FormData) {
   const existing = await prisma.serviceInstance.findUnique({ where: { id: parsed.id } });
   if (!existing) throw new Error("Service not found");
   const credentials = Object.fromEntries(Object.entries({ username: parsed.username, password: parsed.password, apiKey: parsed.apiKey, token: parsed.token }).filter(([, value]) => value));
+  const existingConfiguration = existing.configuration && typeof existing.configuration === "object" && !Array.isArray(existing.configuration)
+    ? existing.configuration as Record<string, unknown>
+    : {};
+  const configuration = parsed.endpointId === undefined ? undefined : { ...existingConfiguration, endpointId: parsed.endpointId };
   await prisma.$transaction(async (tx) => {
     let credentialId = existing.credentialId;
     if (Object.keys(credentials).length) {
@@ -146,7 +153,7 @@ export async function updateService(formData: FormData) {
       if (credentialId) await tx.encryptedCredential.update({ where: { id: credentialId }, data: encrypted });
       else credentialId = (await tx.encryptedCredential.create({ data: encrypted })).id;
     }
-    await tx.serviceInstance.update({ where: { id: parsed.id }, data: { name: parsed.name, categoryId: parsed.categoryId, adapterType: parsed.adapterType, icon: parsed.icon, description: parsed.description, baseUrl: parsed.baseUrl || null, launchUrl: parsed.launchUrl, credentialId } });
+    await tx.serviceInstance.update({ where: { id: parsed.id }, data: { name: parsed.name, categoryId: parsed.categoryId, adapterType: parsed.adapterType, icon: parsed.icon, description: parsed.description, baseUrl: parsed.baseUrl || null, launchUrl: parsed.launchUrl, credentialId, configuration } });
   });
   await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: parsed.id, action: "service-updated", status: "success" } });
   revalidateDashboardPaths();
