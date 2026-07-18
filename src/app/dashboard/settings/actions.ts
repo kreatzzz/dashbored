@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getAdapter } from "@/lib/adapters";
 import { encryptCredential } from "@/lib/crypto";
+import { syncPortainerLaunchers } from "@/lib/launchers";
 import { assertPrivateServiceUrl } from "@/lib/network";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -16,7 +18,7 @@ const portainerConnectionSchema = z.object({
   endpointId: z.coerce.number().int().min(1).max(1_000_000).default(1),
 });
 
-export type PortainerConnectionState = { status: "idle" | "success" | "error"; error?: string };
+export type PortainerConnectionState = { status: "idle" | "success" | "error"; error?: string; message?: string };
 
 const initialPortainerConnectionState: PortainerConnectionState = { status: "idle" };
 
@@ -39,6 +41,21 @@ export async function createPortainerConnection(
   try {
     const launchUrl = parsed.data.launchUrl || parsed.data.baseUrl;
     await Promise.all([assertPrivateServiceUrl(parsed.data.baseUrl), assertPrivateServiceUrl(launchUrl)]);
+    // Test the exact environment before saving credentials. A successful
+    // `/api/endpoints` response alone is not enough: the token also needs to
+    // be able to read the requested container environment.
+    try {
+      await getAdapter("portainer").getSummary({
+        id: "connection-check",
+        name: "Portainer",
+        baseUrl: parsed.data.baseUrl,
+        launchUrl,
+        credentials: { apiKey: parsed.data.apiKey },
+        configuration: { endpointId: parsed.data.endpointId },
+      });
+    } catch (error) {
+      return { status: "error", error: portainerConnectionError(error) };
+    }
     const category = await prisma.serviceCategory.findUnique({ where: { slug: "infrastructure" }, select: { id: true } });
     if (!category) return { status: "error", error: "The Infrastructure category is unavailable. Run database migrations, then try again." };
 
@@ -61,11 +78,28 @@ export async function createPortainerConnection(
       });
     });
     await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: service.id, action: "portainer-connected", status: "success" } });
+    let discoveryMessage = "Connected. Inventory will continue to refresh in the background.";
+    try {
+      const discovery = await syncPortainerLaunchers(service);
+      discoveryMessage = discovery.discovered
+        ? `Connected and imported ${discovery.discovered} container${discovery.discovered === 1 ? "" : "s"}.`
+        : "Connected. Portainer reported no containers for this environment.";
+    } catch (error) {
+      console.warn(JSON.stringify({ level: "warn", event: "portainer.initial_discovery_failed", message: error instanceof Error ? error.message : "Unknown error" }));
+    }
     revalidateDashboardPaths();
-    return { status: "success" };
+    return { status: "success", message: discoveryMessage };
   } catch {
     return { status: "error", error: "Dashbored could not save that connection. Check that both URLs are private and reachable from the dashboard server." };
   }
+}
+
+function portainerConnectionError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (/authentication|401|403|unauthor/i.test(message)) return "Portainer rejected that access token. Create a scoped token for an account that can see the selected environment.";
+  if (/not found|404/i.test(message)) return "Dashbored could not find that Portainer environment. Confirm the Portainer URL and environment ID.";
+  if (/abort|timeout|timed out/i.test(message)) return "Dashbored could not reach Portainer before the request timed out. Check the private network path and URL.";
+  return "Dashbored could not validate that Portainer connection. Check the private URL, token, and environment ID.";
 }
 
 export async function createService(formData: FormData) {

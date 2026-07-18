@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { ArrowRight, Check, Container, KeyRound, LoaderCircle, ScanSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createPortainerConnection, type PortainerConnectionState } from "@/app/dashboard/settings/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -48,6 +49,7 @@ export function PortainerConnectionDialog() {
       const nextState = await createPortainerConnection(state, formData);
       setState(nextState);
       if (nextState.status === "success") {
+        toast.success(nextState.message ?? "Portainer connected");
         setOpen(false);
         router.refresh();
       }
