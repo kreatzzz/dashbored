@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 import { getAdapter } from "@/lib/adapters";
 import { listPortainerEnvironments, type PortainerEnvironment } from "@/lib/adapters/portainer";
 import { encryptCredential } from "@/lib/crypto";
@@ -9,6 +10,7 @@ import { syncPortainerLaunchers } from "@/lib/launchers";
 import { assertPrivateServiceUrl } from "@/lib/network";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { getServiceContext } from "@/lib/services";
 
 const schema = z.object({ name: z.string().min(2).max(60), categoryId: z.string().min(1), adapterType: z.string().min(1), icon: z.string().min(1), baseUrl: z.string().url().optional().or(z.literal("")), launchUrl: z.string().url(), description: z.string().max(160).optional(), username: z.string().max(120).optional(), password: z.string().max(300).optional(), apiKey: z.string().max(1000).optional(), token: z.string().max(2000).optional() });
 
@@ -190,25 +192,63 @@ export async function updateService(formData: FormData): Promise<ServiceMutation
   const parsed = updateSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { status: "error", error: "Check the required connection fields and try again." };
   try {
-    if (parsed.data.baseUrl) await assertPrivateServiceUrl(parsed.data.baseUrl);
-    await assertPrivateServiceUrl(parsed.data.launchUrl);
     const existing = await prisma.serviceInstance.findUnique({ where: { id: parsed.data.id } });
     if (!existing) return { status: "error", error: "This connection no longer exists. Refresh Settings and try again." };
+    const baseUrl = parsed.data.adapterType === "portainer" ? parsed.data.baseUrl || existing.baseUrl : parsed.data.baseUrl || null;
+    if (baseUrl) await assertPrivateServiceUrl(baseUrl);
+    await assertPrivateServiceUrl(parsed.data.launchUrl);
     const credentials = Object.fromEntries(Object.entries({ username: parsed.data.username, password: parsed.data.password, apiKey: parsed.data.apiKey, token: parsed.data.token }).filter(([, value]) => value));
     const existingConfiguration = existing.configuration && typeof existing.configuration === "object" && !Array.isArray(existing.configuration)
       ? existing.configuration as Record<string, unknown>
       : {};
-    const configuration = parsed.data.endpointId === undefined ? undefined : { ...existingConfiguration, endpointId: parsed.data.endpointId };
-    await prisma.$transaction(async (tx) => {
+    let configuration: Record<string, unknown> | undefined = parsed.data.endpointId === undefined ? undefined : { ...existingConfiguration, endpointId: parsed.data.endpointId };
+    if (parsed.data.adapterType === "portainer") {
+      const savedCredentials = existing.baseUrl ? (await getServiceContext(existing)).credentials : {};
+      const apiKey = parsed.data.apiKey || savedCredentials.apiKey;
+      if (!apiKey) return { status: "error", error: "Enter a Portainer access token before saving this connection." };
+      const connectionContext = {
+        id: existing.id,
+        name: parsed.data.name,
+        baseUrl: baseUrl || "",
+        launchUrl: parsed.data.launchUrl,
+        credentials: { ...savedCredentials, ...credentials, apiKey },
+        configuration: { ...existingConfiguration, endpointId: parsed.data.endpointId ?? existingConfiguration.endpointId ?? 1 },
+      };
+      if (!connectionContext.baseUrl) return { status: "error", error: "Enter a private Portainer URL before saving this connection." };
+      let environments: PortainerEnvironment[];
+      try {
+        environments = await listPortainerEnvironments(connectionContext);
+      } catch (error) {
+        return { status: "error", error: portainerConnectionError(error) };
+      }
+      if (!environments.length) return { status: "error", error: "Portainer accepted the token but did not expose any environments. Grant the account access to one environment, then try again." };
+      const endpointId = Number(connectionContext.configuration.endpointId);
+      const environment = environments.find((candidate) => candidate.id === endpointId);
+      if (!environment) return { status: "error", error: missingEnvironmentMessage(environments) };
+      try {
+        await getAdapter("portainer").getSummary({ ...connectionContext, configuration: { endpointId: environment.id } });
+      } catch (error) {
+        return { status: "error", error: portainerConnectionError(error) };
+      }
+      configuration = { ...existingConfiguration, endpointId: environment.id, endpointName: environment.name };
+    }
+    const updatedService = await prisma.$transaction(async (tx) => {
       let credentialId = existing.credentialId;
       if (Object.keys(credentials).length) {
         const encrypted = encryptCredential(credentials as Record<string, string>);
         if (credentialId) await tx.encryptedCredential.update({ where: { id: credentialId }, data: encrypted });
         else credentialId = (await tx.encryptedCredential.create({ data: encrypted })).id;
       }
-      await tx.serviceInstance.update({ where: { id: parsed.data.id }, data: { name: parsed.data.name, categoryId: parsed.data.categoryId, adapterType: parsed.data.adapterType, icon: parsed.data.icon, description: parsed.data.description, baseUrl: parsed.data.baseUrl || null, launchUrl: parsed.data.launchUrl, credentialId, configuration } });
+      return tx.serviceInstance.update({ where: { id: parsed.data.id }, data: { name: parsed.data.name, categoryId: parsed.data.categoryId, adapterType: parsed.data.adapterType, icon: parsed.data.icon, description: parsed.data.description, baseUrl, launchUrl: parsed.data.launchUrl, credentialId, configuration: configuration as Prisma.InputJsonValue | undefined, ...(parsed.data.adapterType === "portainer" ? { lastStatus: "unknown", lastCheckedAt: null, lastLatencyMs: null, pollFailureCount: 0, nextPollAt: null } : {}) } });
     });
-    await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: parsed.data.id, action: "service-updated", status: "success" } });
+    await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: parsed.data.id, action: parsed.data.adapterType === "portainer" ? "portainer-updated" : "service-updated", status: "success" } });
+    if (parsed.data.adapterType === "portainer") {
+      try {
+        await syncPortainerLaunchers(updatedService);
+      } catch (error) {
+        console.warn(JSON.stringify({ level: "warn", event: "portainer.updated_discovery_failed", serviceId: updatedService.id, message: error instanceof Error ? error.message : "Unknown error" }));
+      }
+    }
     revalidateDashboardPaths();
     revalidatePath(`/dashboard/services/${existing.slug}`);
     return { status: "success" };
