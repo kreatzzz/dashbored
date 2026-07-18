@@ -16,11 +16,29 @@ type PortainerContainer = {
   Ports?: unknown;
 };
 
+type DockerInfo = {
+  Containers?: unknown;
+  ContainersRunning?: unknown;
+  ContainersPaused?: unknown;
+  ContainersStopped?: unknown;
+  Images?: unknown;
+  NCPU?: unknown;
+  MemTotal?: unknown;
+  ServerVersion?: unknown;
+  OperatingSystem?: unknown;
+  Driver?: unknown;
+};
+
 type PublishedPort = { privatePort?: number; publicPort?: number; protocol?: string; bindAddress?: string };
 
 function numberPort(value: unknown): number | undefined {
   const port = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
   return Number.isInteger(port) && port > 0 && port <= 65_535 ? port : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 function publishedPorts(container: PortainerContainer): PublishedPort[] {
@@ -146,15 +164,38 @@ export const portainerAdapter: ServiceAdapter = {
   },
   async getSummary(context) {
     const endpointId = Number(context.configuration.endpointId ?? 1);
-    const response = await safeFetch(joinUrl(context, `/api/endpoints/${endpointId}/docker/containers/json?all=true`), { headers: headers(context.credentials) });
-    if (!response.ok) throw new Error(await responseMessage(response));
-    const containers = await response.json() as Array<Record<string, unknown>>;
-    const running = containers.filter((container) => container.State === "running").length;
+    const [containersResponse, infoResponse] = await Promise.all([
+      safeFetch(joinUrl(context, `/api/endpoints/${endpointId}/docker/containers/json?all=true`), { headers: headers(context.credentials) }),
+      safeFetch(joinUrl(context, `/api/endpoints/${endpointId}/docker/info`), { headers: headers(context.credentials) }),
+    ]);
+    if (!containersResponse.ok) throw new Error(await responseMessage(containersResponse));
+    const containers = await containersResponse.json() as Array<Record<string, unknown>>;
+    const info = infoResponse.ok ? await infoResponse.json() as DockerInfo : {};
+    const running = numberValue(info.ContainersRunning) ?? containers.filter((container) => container.State === "running").length;
+    const total = numberValue(info.Containers) ?? containers.length;
+    const stopped = numberValue(info.ContainersStopped) ?? Math.max(0, total - running);
+    const paused = numberValue(info.ContainersPaused) ?? containers.filter((container) => container.State === "paused").length;
+    const images = numberValue(info.Images) ?? new Set(containers.map((container) => String(container.Image ?? "")).filter(Boolean)).size;
+    const cores = numberValue(info.NCPU);
+    const memory = numberValue(info.MemTotal);
+    const sorted = containers.toSorted((a, b) => {
+      const aRunning = a.State === "running" ? 0 : 1;
+      const bRunning = b.State === "running" ? 0 : 1;
+      if (aRunning !== bRunning) return aRunning - bRunning;
+      const aName = Array.isArray(a.Names) ? String(a.Names[0] ?? "") : "";
+      const bName = Array.isArray(b.Names) ? String(b.Names[0] ?? "") : "";
+      return aName.localeCompare(bName);
+    });
     return { title: "Container runtime", metrics: [
-      { label: "Running", value: String(running) },
-      { label: "Stopped", value: String(containers.length - running) },
-      { label: "Total", value: String(containers.length) },
-    ], items: containers.slice(0, 20).map((container) => ({
+      { label: "Running", value: String(running), detail: `${total} total containers`, color: "green" as const },
+      { label: "Stopped", value: String(stopped), detail: paused ? `${paused} paused` : "No paused containers", color: stopped ? "amber" as const : "gray" as const },
+      { label: "Images", value: String(images), detail: "Available on this environment", color: "blue" as const },
+      { label: "Host capacity", value: cores ? `${cores} cores` : "—", detail: memory ? `${formatBytes(memory)} memory` : "Host details unavailable", color: "gray" as const },
+    ], details: [
+      { label: "Environment", value: String(endpointId), detail: `${total} containers returned by Portainer` },
+      ...(typeof info.ServerVersion === "string" ? [{ label: "Docker engine", value: `v${info.ServerVersion}`, detail: typeof info.OperatingSystem === "string" ? info.OperatingSystem : "Reported by Portainer" }] : []),
+      ...(typeof info.Driver === "string" ? [{ label: "Storage driver", value: info.Driver, detail: "Docker environment configuration" }] : []),
+    ], items: sorted.slice(0, 50).map((container) => ({
       id: String(container.Id ?? ""),
       name: Array.isArray(container.Names) ? String(container.Names[0] ?? "").replace(/^\//, "") : "Container",
       image: String(container.Image ?? ""),
@@ -187,3 +228,9 @@ export const portainerAdapter: ServiceAdapter = {
     return { message: `Container ${action} requested` };
   },
 };
+
+function formatBytes(value: number) {
+  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(1)} GB`;
+  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  return `${Math.round(value / 1024)} KB`;
+}
