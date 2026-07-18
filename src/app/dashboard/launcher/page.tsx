@@ -2,6 +2,7 @@ import { ExternalLink, Plus } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { resolveLauncherEntry } from "@/lib/launchers";
+import { uniqueLauncherUrls } from "@/lib/launcher-urls";
 import { LauncherGrid, type LauncherEntry } from "@/components/launcher-grid";
 import { LauncherInventory, type InventoryEntry } from "@/components/launcher-inventory";
 import { PageHeader } from "@/components/page-header";
@@ -12,10 +13,10 @@ export default async function LauncherPage() {
     prisma.serviceInstance.findMany({ where: { enabled: true }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }], include: { category: { select: { name: true } } } }),
     prisma.launcherEntry.findMany({ orderBy: { discoveredName: "asc" }, include: { providerService: { select: { id: true, name: true } } } }),
   ]);
-  const entries: LauncherEntry[] = [
+  const entries: LauncherEntry[] = uniqueLauncherUrls([
     ...services.filter((service) => Boolean(service.launchUrl)).map((service) => ({ id: `service-${service.id}`, name: service.name, slug: service.slug, description: service.description, icon: service.icon, launchUrl: service.launchUrl, category: service.category.name, status: service.lastStatus })),
     ...discovered.filter((entry) => !entry.hidden).map((entry) => ({ ...resolveLauncherEntry(entry), id: `container-${entry.id}`, slug: entry.containerId, description: entry.image ?? entry.containerStatus, icon: "container", launchUrl: resolveLauncherEntry(entry).launchUrl ?? "", category: `${entry.providerService.name} containers`, status: entry.lastStatus })).filter((entry) => Boolean(entry.launchUrl)),
-  ];
+  ]);
   const inventory: InventoryEntry[] = discovered.map((entry) => {
     const resolved = resolveLauncherEntry(entry);
     return { id: entry.id, name: resolved.name, inferredName: entry.discoveredName, image: entry.image, launchUrl: resolved.launchUrl, inferredLaunchUrl: entry.inferredLaunchUrl, hidden: entry.hidden, state: entry.containerState, status: entry.containerStatus, health: entry.lastStatus, provider: entry.providerService.name };
