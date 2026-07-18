@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ArrowUpRight, CircleAlert, Clock3, Settings2, WifiOff } from "lucide-react";
 import { getAdapter, type SummaryResult } from "@/lib/adapters";
 import { prisma } from "@/lib/prisma";
-import { getRuntimeTelemetry } from "@/lib/runtime-telemetry";
 import { getServiceContext } from "@/lib/services";
 import { formatRelative } from "@/lib/utils";
 import { AppIcon } from "@/components/app-icons";
@@ -28,7 +27,6 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
   let version: string | undefined;
   let actions = [] as Awaited<ReturnType<typeof adapter.getAvailableActions>>;
 
-  const runtimePromise = getRuntimeTelemetry(service.slug);
   if (shouldLoadNativeData) {
     try {
       const context = await getServiceContext(service);
@@ -39,7 +37,6 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
       error = reason instanceof Error ? reason.message : "Could not load service data";
     }
   }
-  const runtime = await runtimePromise;
   const offline = service.lastStatus === "offline";
   const lastMessage = service.healthSnapshots[0]?.message;
 
@@ -50,7 +47,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
 
       {offline ? <OfflineState name={service.name} message={lastMessage} launchUrl={service.launchUrl} />
         : error ? <UnavailableState message={error} />
-          : <ServiceDashboard slug={service.slug} summary={summary} runtime={runtime} serviceId={service.id} adapterType={service.adapterType} actions={actions} credentialConfigured={credentialConfigured} />}
+          : <ServiceDashboard slug={service.slug} summary={summary} serviceId={service.id} adapterType={service.adapterType} actions={actions} credentialConfigured={credentialConfigured} />}
 
       {actions.length > 0 && service.adapterType !== "portainer" && <section className="flex flex-col justify-between gap-4 rounded-lg bg-card p-5 shadow-[var(--surface-shadow)] sm:flex-row sm:items-center"><div><h2 className="text-sm font-medium">Operational actions</h2><p className="mt-1 max-w-[65ch] text-pretty text-[13px] leading-5 text-muted-foreground">Every mutation requires confirmation and is written to the audit log.</p></div><ServiceActions serviceId={service.id} actions={actions} /></section>}
 

@@ -7,22 +7,20 @@ import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
 import { AppIcon } from "@/components/app-icons";
 import type { getAdapter, SummaryResult } from "@/lib/adapters";
-import type { RuntimeTelemetry } from "@/lib/runtime-telemetry";
 
 type Actions = Awaited<ReturnType<ReturnType<typeof getAdapter>["getAvailableActions"]>>;
 
-export function ServiceDashboard({ slug, summary, runtime, serviceId, adapterType, actions, credentialConfigured }: {
+export function ServiceDashboard({ slug, summary, serviceId, adapterType, actions, credentialConfigured }: {
   slug: string;
   summary: SummaryResult | null;
-  runtime: RuntimeTelemetry | null;
   serviceId: string;
   adapterType: string;
   actions: Actions;
   credentialConfigured: boolean;
 }) {
   const product = products[slug];
-  if (needsCredential(adapterType) && !credentialConfigured) return <IntegrationNeeded product={product} runtime={runtime} />;
-  if (adapterType === "generic") return <LauncherDashboard slug={slug} product={product} runtime={runtime} />;
+  if (needsCredential(adapterType) && !credentialConfigured) return <IntegrationNeeded product={product} />;
+  if (adapterType === "generic") return <LauncherDashboard slug={slug} product={product} />;
   if (!summary) return null;
   const visibleDetails = (summary.details ?? []).slice(0, 4);
   const visibleCharts = (summary.charts ?? []).slice(0, 1);
@@ -70,9 +68,8 @@ function ItemTable({ items, serviceId, adapterType, actions }: { items: NonNulla
   return <section className="overflow-hidden rounded-lg bg-card shadow-[var(--surface-shadow)]"><div className="border-b border-border px-5 py-4"><SectionHeading title="Resources" description={`${items.length} items returned by the service`} /></div><div className="divide-y divide-border">{items.map((item, index) => <div key={String(item.id ?? index)} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-5 py-3"><div className="min-w-0"><p className="truncate text-[13px] font-medium">{String(item.name ?? `Item ${index + 1}`)}</p><p className="mono mt-1 truncate text-[11px] text-muted-foreground">{String(item.image ?? item.status ?? "")}</p></div><div className="flex items-center gap-3"><span className="flex items-center gap-2 text-xs text-muted-foreground"><StatusDot status={String(item.state ?? item.status) === "running" || String(item.status) === "up" ? "healthy" : "unknown"} />{String(item.state ?? item.status ?? "")}</span>{adapterType === "portainer" && <ServiceActions serviceId={serviceId} actions={actions} target={String(item.id)} />}</div></div>)}</div></section>;
 }
 
-function IntegrationNeeded({ product, runtime }: { product?: Product; runtime: RuntimeTelemetry | null }) {
+function IntegrationNeeded({ product }: { product?: Product }) {
   return <div className="space-y-6">
-    {runtime && <RuntimeStrip runtime={runtime} />}
     <section className="overflow-hidden rounded-lg bg-card shadow-[var(--surface-shadow)]">
       <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(380px,.95fr)]">
         <div className="border-b border-border p-6 lg:border-b-0 lg:border-r md:p-8"><div className="grid h-9 w-9 place-items-center rounded-md bg-muted shadow-[var(--surface-shadow)]"><KeyRound size={16} /></div><h2 className="mt-5 text-balance text-lg font-semibold leading-tight tracking-[-.02em]">Connect {product?.name ?? "this service"} data</h2><p className="mt-2 max-w-[65ch] text-pretty text-[13px] leading-6 text-muted-foreground">The service is reachable, but Dashbored needs {product?.credential ?? "an API credential"} before it can load private operational data. Health monitoring continues without it.</p><Button asChild size="sm" className="mt-5"><Link href="/dashboard/settings">Add encrypted credential<ArrowRight size={13} /></Link></Button></div>
@@ -82,9 +79,9 @@ function IntegrationNeeded({ product, runtime }: { product?: Product; runtime: R
   </div>;
 }
 
-function LauncherDashboard({ slug, product, runtime }: { slug: string; product?: Product; runtime: RuntimeTelemetry | null }) {
+function LauncherDashboard({ slug, product }: { slug: string; product?: Product }) {
   return <div className="space-y-6">
-    {runtime ? <RuntimeStrip runtime={runtime} /> : <section className="rounded-lg bg-card p-6 shadow-[var(--surface-shadow)]"><p className="text-sm font-medium">Launch link configured</p><p className="mt-1 max-w-[65ch] text-pretty text-[13px] leading-5 text-muted-foreground">Dashbored has no native health source for this application. Use Portainer inventory for container state or add a dedicated monitoring service when you need availability data.</p></section>}
+    <section className="rounded-lg bg-card p-6 shadow-[var(--surface-shadow)]"><p className="text-sm font-medium">Launch link configured</p><p className="mt-1 max-w-[65ch] text-pretty text-[13px] leading-5 text-muted-foreground">Dashbored has no native health source for this application. Use Portainer inventory for container state or add a dedicated monitoring service when you need availability data.</p></section>
     <section className="overflow-hidden rounded-lg bg-card shadow-[var(--surface-shadow)]"><div className="grid lg:grid-cols-[minmax(360px,.8fr)_minmax(0,1.2fr)]"><ProductPreview slug={slug} kind={product?.preview} /><div className="p-6 md:p-8"><div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-md bg-muted shadow-[var(--surface-shadow)]"><AppIcon name={previewIcon(product?.preview)} size={16} /></div><div><h2 className="text-balance text-base font-semibold leading-tight tracking-[-.02em]">{product?.insightTitle ?? "Native application data"}</h2><p className="text-xs text-muted-foreground">Launcher mode</p></div></div><p className="mt-5 max-w-[65ch] text-pretty text-[13px] leading-6 text-muted-foreground">{product?.insightDescription ?? "This connection currently monitors reachability and runtime resources. Add a native API adapter to bring application data into the dashboard."}</p><div className="mt-6 divide-y divide-border border-y border-border">{(product?.features ?? defaultFeatures).slice(0, 3).map((feature) => <div key={feature.title} className="grid grid-cols-[minmax(0,1fr)_auto] gap-5 py-3.5"><div><p className="text-[13px] font-medium">{feature.title}</p><p className="mt-1 text-pretty text-xs leading-5 text-muted-foreground">{feature.description}</p></div><span className="self-center whitespace-nowrap text-xs text-muted-foreground">Needs API</span></div>)}</div><div className="mt-5 flex items-center gap-2 text-xs text-muted-foreground"><CheckCircle2 size={14} className="text-[var(--good)]" />Launch and container monitoring are active</div></div></div></section>
   </div>;
 }
@@ -97,13 +94,7 @@ function ProductPreview({ slug, kind = "service" }: { slug: string; kind?: Produ
 
 function previewIcon(kind?: Product["preview"]) { return kind === "photos" ? "image" : kind === "media" ? "film" : "activity"; }
 
-function RuntimeStrip({ runtime }: { runtime: RuntimeTelemetry }) {
-  return <section className="overflow-hidden rounded-lg bg-card shadow-[var(--surface-shadow)]"><div className="border-b border-border px-5 py-3.5"><div className="flex items-center justify-between"><p className="text-[13px] font-medium">Live container</p><span className="flex items-center gap-2 text-xs text-muted-foreground"><StatusDot status={/^up/i.test(runtime.status) ? "healthy" : "unknown"} />{runtime.status}</span></div></div><div className="grid grid-cols-2 divide-x divide-y divide-border md:grid-cols-4 md:divide-y-0"><RuntimeMetric label="CPU" value={`${runtime.cpu.toFixed(2)}%`} /><RuntimeMetric label="Memory" value={formatMb(runtime.memoryMb)} /><RuntimeMetric label="Network" value={formatMb(runtime.networkMb)} /><RuntimeMetric label="Image" value={runtime.image.split("@")[0]} compact /></div></section>;
-}
-
-function RuntimeMetric({ label, value, compact }: { label: string; value: string; compact?: boolean }) { return <div className="min-w-0 p-5"><p className="text-xs text-muted-foreground">{label}</p><p className={`${compact ? "mono truncate text-xs" : "mt-2 text-xl font-semibold tabular-nums"}`} title={value}>{value}</p></div>; }
 function SectionHeading({ title, description }: { title: string; description?: string }) { return <div><h2 className="text-balance text-sm font-medium leading-tight">{title}</h2>{description && <p className="mt-1 max-w-[65ch] text-pretty text-[13px] leading-5 text-muted-foreground">{description}</p>}</div>; }
-function formatMb(value: number) { return value >= 1024 ? `${(value / 1024).toFixed(1)} GB` : `${value.toFixed(value >= 100 ? 0 : 1)} MB`; }
 function needsCredential(adapterType: string) { return ["adguard", "uptime-kuma", "portainer", "beszel", "radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "immich", "seerr"].includes(adapterType); }
 
 type Product = { name: string; credential: string; insightTitle: string; insightDescription: string; preview?: "photos" | "media" | "service"; setup?: Array<{ title: string; description: string }>; features: Array<{ title: string; description: string }> };
