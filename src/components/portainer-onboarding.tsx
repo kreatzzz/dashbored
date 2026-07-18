@@ -21,7 +21,7 @@ export function PortainerOnboarding() {
           <div className="mt-7 grid h-11 w-11 place-items-center rounded-lg border border-border bg-background shadow-[var(--surface-shadow)]"><Container size={19} /></div>
           <h2 className="mt-5 max-w-lg text-balance text-2xl font-semibold leading-tight tracking-[-.035em]">Start with your container inventory.</h2>
           <p className="mt-3 max-w-[54ch] text-pretty text-[13px] leading-6 text-muted-foreground">Connect one scoped Portainer token. Dashbored will discover containers on a quiet schedule, surface their state, and build your private Launcher without touching the Docker socket.</p>
-          <div className="mt-6"><PortainerConnectionDialog /></div>
+          <div className="mt-6"><PortainerConnectionDialog replaceUnconfigured /></div>
           <p className="mt-3 text-[11px] text-muted-foreground">Private URLs only · Token encrypted at rest · Actions always require confirmation</p>
         </div>
       </div>
@@ -38,7 +38,7 @@ function OnboardingStep({ icon: Icon, number, title, description, active = false
   return <div className="flex gap-4 px-6 py-5"><div className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border ${active ? "border-[color-mix(in_srgb,var(--ds-blue-700)_28%,var(--border))] bg-[color-mix(in_srgb,var(--ds-blue-700)_8%,transparent)] text-[var(--ds-blue-700)]" : "border-border bg-background text-muted-foreground"}`}><Icon size={14} /></div><div className="min-w-0"><p className="mono text-[10px] text-muted-foreground">{number}</p><p className="mt-1 text-[13px] font-medium">{title}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p></div></div>;
 }
 
-export function PortainerConnectionDialog() {
+export function PortainerConnectionDialog({ replaceUnconfigured = false }: { replaceUnconfigured?: boolean }) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<PortainerConnectionState>(initialState);
   const [pending, startTransition] = useTransition();
@@ -60,7 +60,7 @@ export function PortainerConnectionDialog() {
       <div className="grid h-9 w-9 place-items-center rounded-md border border-border bg-muted"><Container size={16} /></div>
       <DialogTitle className="mt-4 text-xl font-semibold tracking-[-.025em]">Connect Portainer</DialogTitle>
       <DialogDescription className="mt-1 text-sm leading-6 text-muted-foreground">This token is encrypted before it is stored. Dashbored uses it only from the server to read inventory and run confirmed actions.</DialogDescription>
-      <form action={submit} className="mt-6 space-y-4">
+      <form action={submit} className="mt-6 space-y-4">{replaceUnconfigured && <input type="hidden" name="replaceUnconfigured" value="true" />}
         <Field label="Portainer URL" hint="Must be private and reachable from the Dashbored container."><Input name="baseUrl" type="url" required autoComplete="url" placeholder="https://portainer.home.arpa" /></Field>
         <Field label="Access token" hint="Create this under Portainer → My account → Access tokens."><Input name="apiKey" type="password" required autoComplete="off" placeholder="Paste a scoped token" /></Field>
         <details className="group rounded-md border border-border bg-muted/20"><summary className="cursor-pointer px-3 py-2.5 text-xs font-medium text-muted-foreground marker:hidden">Advanced connection settings</summary><div className="grid gap-4 border-t border-border px-3 py-4"><Field label="Environment ID" hint="Usually 1. Choose the Portainer environment to manage."><Input name="endpointId" type="number" min="1" step="1" defaultValue="1" required /></Field><Field label="Browser URL (optional)" hint="Leave blank to use the Portainer URL above."><Input name="launchUrl" type="url" autoComplete="url" placeholder="https://portainer.home.arpa" /></Field></div></details>

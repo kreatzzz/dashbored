@@ -16,6 +16,7 @@ const portainerConnectionSchema = z.object({
   launchUrl: z.string().url().max(2048).optional().or(z.literal("")),
   apiKey: z.string().min(1).max(1000),
   endpointId: z.coerce.number().int().min(1).max(1_000_000).default(1),
+  replaceUnconfigured: z.literal("true").optional(),
 });
 
 export type PortainerConnectionState = { status: "idle" | "success" | "error"; error?: string; message?: string };
@@ -58,10 +59,34 @@ export async function createPortainerConnection(
     }
     const category = await prisma.serviceCategory.findUnique({ where: { slug: "infrastructure" }, select: { id: true } });
     if (!category) return { status: "error", error: "The Infrastructure category is unavailable. Run database migrations, then try again." };
+    const existingPlaceholder = parsed.data.replaceUnconfigured
+      ? await prisma.serviceInstance.findFirst({ where: { adapterType: "portainer", credentialId: null }, orderBy: { createdAt: "asc" } })
+      : null;
 
     const encrypted = encryptCredential({ apiKey: parsed.data.apiKey });
     const service = await prisma.$transaction(async (tx) => {
       const credential = await tx.encryptedCredential.create({ data: encrypted });
+      if (existingPlaceholder) {
+        return tx.serviceInstance.update({
+          where: { id: existingPlaceholder.id },
+          data: {
+            name: "Portainer",
+            categoryId: category.id,
+            adapterType: "portainer",
+            icon: "container",
+            description: "Container inventory and confirmed actions",
+            baseUrl: parsed.data.baseUrl,
+            launchUrl,
+            credentialId: credential.id,
+            configuration: { endpointId: parsed.data.endpointId },
+            lastStatus: "unknown",
+            lastCheckedAt: null,
+            lastLatencyMs: null,
+            pollFailureCount: 0,
+            nextPollAt: null,
+          },
+        });
+      }
       return tx.serviceInstance.create({
         data: {
           name: "Portainer",
@@ -77,7 +102,7 @@ export async function createPortainerConnection(
         },
       });
     });
-    await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: service.id, action: "portainer-connected", status: "success" } });
+    await prisma.actionAudit.create({ data: { userId: session.user.id, serviceId: service.id, action: existingPlaceholder ? "portainer-reconnected" : "portainer-connected", status: "success" } });
     let discoveryMessage = "Connected. Inventory will continue to refresh in the background.";
     try {
       const discovery = await syncPortainerLaunchers(service);
